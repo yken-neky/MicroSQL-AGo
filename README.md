@@ -1,2 +1,7 @@
-# MicroSQL-AGo
-Microservice for automated security audits in MS SQL Server
+# Bienvenido a MicroSQL AGo (v0.1)
+
+> [!NOTE] 
+> Un microservicio para las auditorías de seguridad automatizadas en Microsoft SQL Server.
+
+---
+
