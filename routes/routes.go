@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"main/local/controllers"
+	"main/internal/controllers"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,8 +13,8 @@ func SetupRoutes(router *gin.Engine) {
 	{
 		api.POST("", cc.CreateControl)
 		api.GET("", cc.GetControls)
-		// api.GET("/:id", cc.GetControlByID)
-		// api.PUT("/:id", cc.UpdateControl)
-		// api.DELETE("/:id", cc.DeleteControl)
+		api.GET("/:id", cc.GetControlByID)
+		api.PUT("/:id", cc.UpdateControl)
+		api.DELETE("/:id", cc.DeleteControl)
 	}
 }

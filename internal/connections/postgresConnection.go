@@ -2,7 +2,7 @@ package connections
 
 import (
 	"log"
-	"main/local/models"
+	"main/internal/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
