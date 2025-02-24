@@ -19,7 +19,7 @@ type ControlController struct {
 
 func NewController() *ControlController {
 	cc := &ControlController{
-		DB:      connections.DB,
+		DB:      connections.SetupDatabase(),
 		ReqChan: make(chan func()),
 	}
 	go cc.processRequests()

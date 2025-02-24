@@ -6,6 +6,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// SetupRoutes initializes the API routes for the application.
+// It sets up the routes for the /api/v1/controles endpoint, including
+// creating, retrieving, updating, and deleting controls.
+//
+// Parameters:
+//   - router: A pointer to the gin.Engine instance used to define the routes.
 func SetupRoutes(router *gin.Engine) {
 	cc := controllers.NewController()
 
