@@ -9,6 +9,12 @@ type Control struct {
 	Estado      bool   `json:"estado"`
 }
 
+type ControlDTO struct {
+	Nombre      string `json:"nombre" binding:"required"`
+	Descripcion string `json:"descripcion" binding:"required"`
+	Estado      bool   `json:"estado"`
+}
+
 // Migrar la tabla
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(&Control{})

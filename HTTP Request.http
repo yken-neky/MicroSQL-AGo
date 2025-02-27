@@ -8,9 +8,24 @@ POST http://localhost:8080/api/v1/controles
 Content-Type: application/json
 
 {
-  "nombre": "value1",
-  "descripcion": "value2",
+  "nombre": "Nuevo",
+  "descripcion": "Nuevo",
+  "estado": false
+}
+###
+
+# Fast POST request example
+PUT http://localhost:8080/api/v1/controles/5
+Content-Type: application/json
+
+{
+  "nombre": "Nuevo #5 Editado",
+  "descripcion": "Edited #5",
   "estado": true
 }
+###
 
+# Fast DELETE request example
+DELETE http://localhost:8080/api/v1/controles/5
+Content-Type: application/json
 ###

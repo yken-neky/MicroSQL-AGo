@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"errors"
-	"net/http"
-
 	"gorm.io/gorm"
+	"main/internal/utils"
+	"net/http"
 
 	"main/internal/connections"
 	"main/internal/models"
@@ -34,8 +34,8 @@ func (cc *ControlController) processRequests() {
 
 // CreateControl maneja la creación sincronizada
 func (cc *ControlController) CreateControl(c *gin.Context) {
-	var inputControl models.Control
-	if err := c.ShouldBindJSON(&inputControl); err != nil {
+	var dto models.ControlDTO // Usar DTO en lugar del modelo directo
+	if err := c.ShouldBindJSON(&dto); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -47,9 +47,13 @@ func (cc *ControlController) CreateControl(c *gin.Context) {
 	resultChan := make(chan result)
 
 	cc.ReqChan <- func() {
-		controlToCreate := inputControl // Copia local para evitar race conditions
-		err := cc.DB.Create(&controlToCreate).Error
-		resultChan <- result{control: controlToCreate, err: err}
+		control := models.Control{
+			Nombre:      dto.Nombre,
+			Descripcion: dto.Descripcion,
+			Estado:      dto.Estado,
+		}
+		err := cc.DB.Create(&control).Error
+		resultChan <- result{control: control, err: err}
 	}
 
 	res := <-resultChan
@@ -94,7 +98,7 @@ func (cc *ControlController) GetControlByID(c *gin.Context) {
 
 	cc.ReqChan <- func() {
 		var control models.Control
-		err := cc.DB.First(&control, id).Error
+		err := cc.DB.Where("id = ?", id).First(&control).Error // WHERE explícito
 		resultChan <- result{control: control, err: err}
 	}
 
@@ -112,67 +116,109 @@ func (cc *ControlController) GetControlByID(c *gin.Context) {
 
 // UpdateControl actualiza un control
 func (cc *ControlController) UpdateControl(c *gin.Context) {
-	var inputControl models.Control
-	if err := c.ShouldBindJSON(&inputControl); err != nil {
+	id := c.Param("id") // Obtener ID del URL
+
+	// 1. Validar formato del ID (ejemplo para UUID)
+	if !utils.IsValidUUID(id) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	// 2. Usar DTO para bindear solo campos actualizables
+
+	var dto models.ControlDTO
+	if err := c.ShouldBindJSON(&dto); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	type result struct {
-		control      models.Control
-		rowsAffected int64
-		err          error
-	}
-	resultChan := make(chan result)
+	// Validar campos requeridos
+	// if dto.Nombre == "" {
+	//  	c.JSON(http.StatusBadRequest, gin.H{"error": "Nombre es requerido"})
+	//  	return
+	// }
+
+	resultChan := make(chan error)
+	var updatedControl models.Control
 
 	cc.ReqChan <- func() {
-		controlToUpdate := inputControl
-		dbResult := cc.DB.Save(&controlToUpdate)
-		resultChan <- result{
-			control:      controlToUpdate,
-			rowsAffected: dbResult.RowsAffected,
-			err:          dbResult.Error,
+		//Copia local para evitar race condition
+		localDTO := dto
+
+		//Verificar existencia
+		var existingControl models.Control
+		if err := cc.DB.Where("id = ?", id).First(&existingControl).Error; err != nil {
+			resultChan <- err
+			return
 		}
+
+		//Actualizar solo campos permitidos
+		updateData := map[string]interface{}{
+			"nombre":      localDTO.Nombre,
+			"descripcion": localDTO.Descripcion,
+			"estado":      localDTO.Estado,
+		}
+
+		//Ejecutar actualización parcial
+		err := cc.DB.Model(&existingControl).Updates(updateData).Error
+		if err == nil {
+			cc.DB.First(&existingControl, id) // Recargar datos en base de datos
+		}
+		updatedControl = existingControl
+		resultChan <- err
 	}
 
-	res := <-resultChan
-	if res.err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": res.err.Error()})
+	if err := <-resultChan; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Control no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if res.rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Control no encontrado"})
-		return
-	}
-	c.JSON(http.StatusOK, res.control)
+
+	c.JSON(http.StatusOK, updatedControl)
 }
 
 // DeleteControl elimina un control
 func (cc *ControlController) DeleteControl(c *gin.Context) {
 	id := c.Param("id")
 
-	type result struct {
-		rowsAffected int64
-		err          error
+	// Validar formato del ID (ejemplo para UUID)
+	if !utils.IsValidUUID(id) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
 	}
-	resultChan := make(chan result)
+
+	resultChan := make(chan error)
 
 	cc.ReqChan <- func() {
-		dbResult := cc.DB.Delete(&models.Control{}, id)
-		resultChan <- result{
-			rowsAffected: dbResult.RowsAffected,
-			err:          dbResult.Error,
+		// Verificar existencia del registro
+		var control models.Control
+		if err := cc.DB.Where("id = ?", id).First(&control).Error; err != nil {
+			resultChan <- err // Envía error si no existe
+			return
 		}
+
+		// Borrado físico (opcional: usar soft-delete si está configurado)
+		if err := cc.DB.Where("id = ?", id).Delete(&control).Error; err != nil {
+			resultChan <- err
+			return
+		}
+
+		resultChan <- nil
 	}
 
-	res := <-resultChan
-	if res.err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": res.err.Error()})
+	err := <-resultChan
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Control no encontrado"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	if res.rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Control no encontrado"})
-		return
-	}
-	c.JSON(http.StatusNoContent, nil)
+
+	// 4. Respuesta correcta sin cuerpo
+	c.Status(http.StatusNoContent)
 }
