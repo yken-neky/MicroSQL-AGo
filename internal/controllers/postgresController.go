@@ -40,11 +40,7 @@ func (cc *ControlController) CreateControl(c *gin.Context) {
 		return
 	}
 
-	type result struct {
-		control models.Control
-		err     error
-	}
-	resultChan := make(chan result)
+	resultChan := make(chan models.GetcOne)
 
 	cc.ReqChan <- func() {
 		control := models.Control{
@@ -53,65 +49,58 @@ func (cc *ControlController) CreateControl(c *gin.Context) {
 			Estado:      dto.Estado,
 		}
 		err := cc.DB.Create(&control).Error
-		resultChan <- result{control: control, err: err}
+		resultChan <- models.GetcOne{Control: control, Err: err}
 	}
 
 	res := <-resultChan
-	if res.err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": res.err.Error()})
+	if res.Err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": res.Err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, res.control)
+	c.JSON(http.StatusCreated, res.Control)
 }
 
 // GetControls obtiene todos los controles
 func (cc *ControlController) GetControls(c *gin.Context) {
-	type result struct {
-		controls []models.Control
-		err      error
-	}
-	resultChan := make(chan result)
+
+	resultChan := make(chan models.GetcAll)
 
 	cc.ReqChan <- func() {
 		var controls []models.Control
 		err := cc.DB.Find(&controls).Error
-		resultChan <- result{controls: controls, err: err}
+		resultChan <- models.GetcAll{Controls: controls, Err: err}
 	}
 
 	res := <-resultChan
-	if res.err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": res.err.Error()})
+	if res.Err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": res.Err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, res.controls)
+	c.JSON(http.StatusOK, res.Controls)
 }
 
 // GetControlByID obtiene un control por ID
 func (cc *ControlController) GetControlByID(c *gin.Context) {
 	id := c.Param("id")
 
-	type result struct {
-		control models.Control
-		err     error
-	}
-	resultChan := make(chan result)
+	resultChan := make(chan models.GetcOne)
 
 	cc.ReqChan <- func() {
 		var control models.Control
 		err := cc.DB.Where("id = ?", id).First(&control).Error // WHERE explícito
-		resultChan <- result{control: control, err: err}
+		resultChan <- models.GetcOne{Control: control, Err: err}
 	}
 
 	res := <-resultChan
-	if errors.Is(res.err, gorm.ErrRecordNotFound) {
+	if errors.Is(res.Err, gorm.ErrRecordNotFound) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Control no encontrado"})
 		return
 	}
-	if res.err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": res.err.Error()})
+	if res.Err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": res.Err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, res.control)
+	c.JSON(http.StatusOK, res.Control)
 }
 
 // UpdateControl actualiza un control

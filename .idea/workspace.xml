@@ -4,12 +4,8 @@
     <option name="autoReloadType" value="ALL" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="4806ae91-6622-48ad-90d2-31b3534c4ba6" name="Changes" comment="Trying to push from GoLand IDE">
-      <change afterPath="$PROJECT_DIR$/internal/utils/utils.go" afterDir="false" />
+    <list default="true" id="4806ae91-6622-48ad-90d2-31b3534c4ba6" name="Changes" comment="Fix: Bugs + Logic Errors in Controller.go (internal CRUD)">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/HTTP Request.http" beforeDir="false" afterPath="$PROJECT_DIR$/HTTP Request.http" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/controllers/postgresController.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/controllers/postgresController.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/internal/models/posgresModels.go" beforeDir="false" afterPath="$PROJECT_DIR$/internal/models/posgresModels.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -79,7 +75,7 @@
     "node.js.detected.package.eslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "coverage"
+    "settings.editor.selected.configurable": "reference.settings.ide.settings.uml"
   },
   "keyToStringList": {
     "DatabaseDriversLRU": [
@@ -163,7 +159,19 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="main" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
@@ -172,7 +180,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Added &quot;HTTP Request.http&quot; file for http request from IDE" />
     <MESSAGE value="Trying to push from GoLand IDE" />
-    <option name="LAST_COMMIT_MESSAGE" value="Trying to push from GoLand IDE" />
+    <MESSAGE value="Fix: Bugs + Logic Errors in Controller.go (internal CRUD)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix: Bugs + Logic Errors in Controller.go (internal CRUD)" />
   </component>
   <component name="VgoProject">
     <settings-migrated>true</settings-migrated>

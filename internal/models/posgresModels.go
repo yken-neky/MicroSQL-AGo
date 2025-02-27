@@ -15,6 +15,16 @@ type ControlDTO struct {
 	Estado      bool   `json:"estado"`
 }
 
+type GetcOne struct {
+	Control Control
+	Err     error
+}
+
+type GetcAll struct {
+	Controls []Control
+	Err      error
+}
+
 // Migrar la tabla
 func AutoMigrate(db *gorm.DB) error {
 	return db.AutoMigrate(&Control{})

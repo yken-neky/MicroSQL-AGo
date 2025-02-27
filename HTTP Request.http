@@ -15,7 +15,7 @@ Content-Type: application/json
 ###
 
 # Fast POST request example
-PUT http://localhost:8080/api/v1/controles/5
+PUT http://localhost:8080/api/v1/controles/8
 Content-Type: application/json
 
 {
@@ -26,6 +26,6 @@ Content-Type: application/json
 ###
 
 # Fast DELETE request example
-DELETE http://localhost:8080/api/v1/controles/5
+DELETE http://localhost:8080/api/v1/controles/8
 Content-Type: application/json
 ###
