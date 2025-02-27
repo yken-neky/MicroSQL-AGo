@@ -8,7 +8,7 @@ import (
 
 func main() {
 
-	// Iniciar servidor
+	// Clinician server
 	router := gin.Default()
 	routes.SetupRoutes(router)
 

@@ -12,7 +12,8 @@ import (
 // It sets up the connection pool and performs database migration.
 //
 // Returns:
-//   *gorm.DB: A pointer to the GORM database instance.
+//
+//	*gorm.DB: A pointer to the GORM database instance.
 //
 // The function performs the following steps:
 // 1. Constructs the DSN (Data Source Name) for the PostgreSQL connection.
@@ -29,15 +30,15 @@ import (
 func SetupDatabase() *gorm.DB {
 	dsn := `host=localhost 
 			user=postgres 
-			password=POSTGRE*SQL 
-			dbname=MicroSQL_AGo 
+			password=postgres 
+			dbname=MicroSQL_Ago 
 			port=5432 
 			sslmode=disable`
-	 
+
 	if DB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{}); err != nil {
 		log.Fatal("Error de conexión", err)
 	} else {
-		log.Println("¡BD conectada!", err)
+		log.Println("¡BD conectada!")
 
 		// Configurar pool de conexiones
 		sqlDB, _ := DB.DB()
@@ -54,6 +55,3 @@ func SetupDatabase() *gorm.DB {
 	}
 	return nil
 }
-
-
-	
