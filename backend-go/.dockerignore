@@ -1,0 +1,13 @@
+.env
+*.sqlite3
+db.sqlite3
+vendor/
+.git
+.vscode/
+.idea/
+bin/
+app/
+*.exe
+*.dll
+*.so
+*.dylib

@@ -1,0 +1,50 @@
+version: '3.8'
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: microsql_ago
+      MYSQL_USER: micro_user
+      MYSQL_PASSWORD: ChangeMeStrongPassword!
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  app:
+    build: .
+    depends_on:
+      - db
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    environment:
+      # override or ensure MySQL settings for the app
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_USER: micro_user
+      MYSQL_PASSWORD: ChangeMeStrongPassword!
+      MYSQL_DATABASE: microsql_ago
+
+  migrate:
+    build: .
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_USER: micro_user
+      MYSQL_PASSWORD: ChangeMeStrongPassword!
+      MYSQL_DATABASE: microsql_ago
+    # Run once and exit after migration
+    command: ["/app/migrate"]
+    restart: "no"
+
+volumes:
+  db_data:

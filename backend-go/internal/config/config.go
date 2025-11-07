@@ -17,6 +17,12 @@ type Config struct {
 	MssqlUser string
 	MssqlPass string
 	MssqlDB   string
+	// MySQL settings
+	MysqlHost string
+	MysqlPort string
+	MysqlUser string
+	MysqlPass string
+	MysqlDB   string
 }
 
 // LoadConfig loads configuration from environment variables with sensible defaults
@@ -53,6 +59,11 @@ func LoadConfig() Config {
 		MssqlUser:  os.Getenv("MSSQL_USER"),
 		MssqlPass:  os.Getenv("MSSQL_PASSWORD"),
 		MssqlDB:    os.Getenv("MSSQL_DATABASE"),
+		MysqlHost:  os.Getenv("MYSQL_HOST"),
+		MysqlPort:  os.Getenv("MYSQL_PORT"),
+		MysqlUser:  os.Getenv("MYSQL_USER"),
+		MysqlPass:  os.Getenv("MYSQL_PASSWORD"),
+		MysqlDB:    os.Getenv("MYSQL_DATABASE"),
 	}
 }
 
