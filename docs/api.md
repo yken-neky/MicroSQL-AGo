@@ -1,15 +1,57 @@
 # API Documentation
 
 ## Base URL
-`http://localhost:8080/api`
+`http://localhost:8000/api`
 
-## Authentication
-All endpoints except `/auth/login` require JWT token in Authorization header:
+## Endpoints Actuales
+
+### Health
+- `GET /health` — Estado del backend (fuera de /api)
+- `GET /` — Mensaje de bienvenida (fuera de /api)
+
+### Swagger (stub)
+- `GET /api/swagger` — Stub, no implementado
+
+### Usuarios
+- `GET /api/users/health` — Health de usuarios
+- `POST /api/users/register` — Registrar usuario (stub, no guarda en BD)
+- `POST /api/users/login` — Login usuario (stub, devuelve token fijo)
+
+### Autenticación (legacy)
+- `POST /api/auth/login` — Login usuario (stub, igual que /api/users/login)
+
+### Conexiones (stub)
+- `GET /api/connections` — Stub, responde NotImplemented
+
+## Ejemplo de respuesta de stub
+
+- `/api/users/register`:
+```json
+{
+  "message": "user registered (stub)"
+}
 ```
-Authorization: Bearer <token>
+- `/api/users/login` o `/api/auth/login`:
+```json
+{
+  "token": "stub-token"
+}
+```
+- `/api/connections`:
+```json
+{
+  "error": "connections endpoint not implemented yet"
+}
 ```
 
-## Endpoints
+## Notas
+- Todos los endpoints reales de negocio (queries, conexiones, roles, etc.) aún no están implementados.
+- Los endpoints actuales solo sirven para probar la estructura y evitar errores 404.
+- Cuando se implementen los casos de uso reales, se actualizará esta documentación.
+
+---
+
+## Endpoints Planeados (según diseño original)
 
 ### Authentication
 
