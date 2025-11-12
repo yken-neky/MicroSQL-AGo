@@ -24,33 +24,9 @@ func NewQueryHandler(eq *queries.ExecuteQueryUseCase, qr repositories.QueryRepos
 
 // ExecuteQuery maneja la ejecución de consultas SQL
 func (h *QueryHandler) ExecuteQuery(c *gin.Context) {
-	var req struct {
-		SQL      string `json:"sql" binding:"required"`
-		Database string `json:"database" binding:"required"`
-		PageSize int    `json:"pageSize,omitempty"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Obtener userID del contexto (establecido por middleware de auth)
-	userID, _ := c.Get("userID")
-
-	queryReq := queries.QueryRequest{
-		SQL:      req.SQL,
-		Database: req.Database,
-		PageSize: req.PageSize,
-	}
-
-	result, err := h.executeQuery.Execute(c.Request.Context(), userID.(uint), queryReq)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, result)
+	// For security, arbitrary SQL execution via the API is disallowed.
+	// Users must execute predefined control scripts via the audits endpoint.
+	c.JSON(http.StatusForbidden, gin.H{"error": "execution of raw SQL via API is forbidden; use /api/audits/execute to run predefined control scripts"})
 }
 
 // GetQueryResult obtiene el resultado de una consulta por ID

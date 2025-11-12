@@ -41,7 +41,8 @@ func (uc *DisconnectFromServerUseCase) Execute(ctx context.Context, userID uint)
 
 	// Actualizar registro de conexión activa (no gestionamos cierre físico del pool aquí)
 	active.IsConnected = false
-	active.LastDisconnected = time.Now()
+	now := time.Now()
+	active.LastDisconnected = &now
 
 	if err := uc.connRepo.UpdateActive(active); err != nil {
 		return fmt.Errorf("failed to update connection status: %w", err)

@@ -18,15 +18,15 @@ type User struct {
 
 // ActiveConnection represents a user's active SQL Server connection
 type ActiveConnection struct {
-	ID               uint      `gorm:"primaryKey" json:"id"`
-	UserID           uint      `gorm:"uniqueIndex;not null" json:"user_id"`
-	Driver           string    `gorm:"size:255;not null" json:"driver"`
-	Server           string    `gorm:"size:255;not null" json:"server"`
-	DBUser           string    `gorm:"column:db_user;size:255;not null" json:"db_user"`
-	Password         string    `gorm:"size:500;not null" json:"-"` // encrypted
-	IsConnected      bool      `gorm:"default:false;index" json:"is_connected"`
-	LastConnected    time.Time `json:"last_connected"`
-	LastDisconnected time.Time `json:"last_disconnected"`
+	ID               uint       `gorm:"primaryKey" json:"id"`
+	UserID           uint       `gorm:"uniqueIndex;not null" json:"user_id"`
+	Driver           string     `gorm:"size:255;not null" json:"driver"`
+	Server           string     `gorm:"size:255;not null" json:"server"`
+	DBUser           string     `gorm:"column:db_user;size:255;not null" json:"db_user"`
+	Password         string     `gorm:"size:500;not null" json:"-"` // encrypted
+	IsConnected      bool       `gorm:"default:false;index" json:"is_connected"`
+	LastConnected    time.Time  `json:"last_connected"`
+	LastDisconnected *time.Time `json:"last_disconnected"` // nullable
 }
 
 // ControlsInformation minimal entity for migration
