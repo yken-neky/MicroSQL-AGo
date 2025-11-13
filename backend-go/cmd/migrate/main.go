@@ -295,7 +295,7 @@ func main() {
 				continue
 			}
 			if len(djangoScripts) > 0 {
-				// map and insert
+				// map and insert into controls_scripts table with normalized column name
 				goScripts := make([]repoport.ControlsScript, len(djangoScripts))
 				for i, ds := range djangoScripts {
 					goScripts[i] = repoport.ControlsScript{
@@ -305,7 +305,8 @@ func main() {
 						ControlScriptRef: ds.ControlScriptRef,
 					}
 				}
-				if err := dstDB.Clauses(clause.OnConflict{DoNothing: true}).Create(&goScripts).Error; err != nil {
+				// Write to controls_scripts table (GORM will use TableName() from ControlsScript)
+				if err := dstDB.Table("controls_scripts").Clauses(clause.OnConflict{DoNothing: true}).Create(&goScripts).Error; err != nil {
 					log.Fatalf("failed to insert control scripts into mysql: %v", err)
 				}
 				scriptsCopied = len(goScripts)
