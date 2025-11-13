@@ -22,4 +22,4 @@ type ControlsScript struct {
 	ControlScriptRef uint   `gorm:"column:control_script_id_id" json:"control_id"`
 }
 
-func (ControlsScript) TableName() string { return "InsideDB_App_controls_scripts" }
+func (ControlsScript) TableName() string { return "controls_scripts" }
