@@ -10,11 +10,11 @@ import (
 
 	httpadp "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http"
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/secondary/persistence/sqlite/migrations"
-	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/infrastructure/persistence"
-	gormlogger "gorm.io/gorm/logger"
-	"gorm.io/gorm"
 	cfg "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/config"
+	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/infrastructure/persistence"
 	pkglog "github.com/yken-neky/MicroSQL-AGo/backend-go/pkg/utils"
+	"gorm.io/gorm"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 func main() {

@@ -54,11 +54,11 @@ type ScriptResult struct {
 
 // AuditResult agrega el resumen de la auditoría
 type AuditResult struct {
-	Total   int            `json:"total"`
-	Passed  int            `json:"passed"`
-	Failed  int            `json:"failed"`
-	Scripts []ScriptResult `json:"scripts"`
-	AuditRunID uint        `json:"audit_run_id,omitempty"`
+	Total      int            `json:"total"`
+	Passed     int            `json:"passed"`
+	Failed     int            `json:"failed"`
+	Scripts    []ScriptResult `json:"scripts"`
+	AuditRunID uint           `json:"audit_run_id,omitempty"`
 }
 
 // Execute ejecuta una auditoría con controles o scripts indicados
@@ -256,10 +256,10 @@ func (uc *ExecuteAuditUseCase) GetAuditRun(ctx context.Context, userID uint, aud
 	}
 
 	res := &AuditResult{
-		Total:   run.Total,
-		Passed:  run.Passed,
-		Failed:  run.Failed,
-		Scripts: make([]ScriptResult, 0, len(results)),
+		Total:      run.Total,
+		Passed:     run.Passed,
+		Failed:     run.Failed,
+		Scripts:    make([]ScriptResult, 0, len(results)),
 		AuditRunID: run.ID,
 	}
 
