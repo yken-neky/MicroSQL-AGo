@@ -1,0 +1,33 @@
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /health                   --> github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http.RegisterRoutes.func1 (3 handlers)
+[GIN-debug] GET    /                         --> github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http.RegisterRoutes.func2 (3 handlers)
+[GIN-debug] GET    /api/swagger              --> github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http.RegisterRoutes.func3 (3 handlers)
+[GIN-debug] POST   /api/auth/login           --> github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http/handlers.(*UserHandler).Login-fm (3 handlers)
+[GIN-debug] GET    /api/users/health         --> github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http.RegisterRoutes.func4 (3 handlers)
+[GIN-debug] POST   /api/users/register       --> github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http/handlers.(*UserHandler).Register-fm (3 handlers)
+[GIN-debug] POST   /api/audits/execute       --> github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http/handlers.(*AuditHandler).ExecuteAudit-fm (4 handlers)
+[GIN-debug] GET    /api/connections          --> github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http.RegisterRoutes.func5 (3 handlers)
+{"level":"info","ts":1764078439.452516,"caller":"server/main.go:34","msg":"starting server","addr":":8000"}
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://github.com/gin-gonic/gin/blob/master/docs/doc.md#dont-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :8000
+
+2025/11/25 08:47:29 [31;1m/Users/admin/Documents/MicroSQL-AGo/backend-go/internal/adapters/primary/http/handlers/user_handler.go:46 [35;1mrecord not found
+[0m[33m[0.150ms] [34;1m[rows:0][0m SELECT * FROM `users` WHERE username = "testuser" ORDER BY `users`.`id` LIMIT 1
+
+2025/11/25 08:47:29 [31;1m/Users/admin/Documents/MicroSQL-AGo/backend-go/internal/adapters/primary/http/handlers/user_handler.go:56 [35;1mrecord not found
+[0m[33m[0.063ms] [34;1m[rows:0][0m SELECT * FROM `users` WHERE email = "testuser@example.com" ORDER BY `users`.`id` LIMIT 1
+[GIN] 2025/11/25 - 08:47:29 | 201 |   77.707371ms |             ::1 | POST     "/api/users/register"
+[GIN] 2025/11/25 - 08:47:43 | 200 |  155.310064ms |             ::1 | POST     "/api/auth/login"
+[GIN] 2025/11/25 - 08:48:13 | 401 |       67.13µs |             ::1 | POST     "/api/audits/execute"
+[GIN] 2025/11/25 - 08:48:26 | 401 |      49.898µs |             ::1 | POST     "/api/audits/execute"
+[GIN] 2025/11/25 - 08:48:35 | 200 |  210.460015ms |             ::1 | POST     "/api/auth/login"
+
+2025/11/25 08:48:46 [31;1m/Users/admin/Documents/MicroSQL-AGo/backend-go/internal/infrastructure/repositories/gorm_connection_repository.go:25 [35;1mrecord not found
+[0m[33m[0.246ms] [34;1m[rows:0][0m SELECT * FROM `active_connections` WHERE user_id = 1 ORDER BY `active_connections`.`id` LIMIT 1
+[GIN] 2025/11/25 - 08:48:46 | 500 |     440.796µs |             ::1 | POST     "/api/audits/execute"

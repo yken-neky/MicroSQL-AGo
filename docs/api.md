@@ -14,27 +14,36 @@
 
 ### Usuarios
 - `GET /api/users/health` — Health de usuarios
-- `POST /api/users/register` — Registrar usuario (stub, no guarda en BD)
-- `POST /api/users/login` — Login usuario (stub, devuelve token fijo)
+- `POST /api/users/register` — Registrar usuario (crea usuario en BD y retorna JWT)
+- `POST /api/users/login` — Login usuario (valida credenciales, retorna JWT)
 
-### Autenticación (legacy)
-- `POST /api/auth/login` — Login usuario (stub, igual que /api/users/login)
+### Autenticación
+- `POST /api/auth/login` — Login usuario (valida credenciales, retorna JWT)
 
 ### Conexiones (stub)
 - `GET /api/connections` — Stub, responde NotImplemented
 
 ## Ejemplo de respuesta de stub
 
-- `/api/users/register`:
+`/api/users/register` (success):
 ```json
 {
-  "message": "user registered (stub)"
+    "token": "<jwt-token>",
+    "user": {
+        "id": 1,
+        "username": "jdoe",
+        "email": "jdoe@example.com",
+        "first_name": "John",
+        "last_name": "Doe",
+        "role": "cliente"
+    }
 }
 ```
-- `/api/users/login` o `/api/auth/login`:
+`/api/users/login` or `/api/auth/login` (success):
 ```json
 {
-  "token": "stub-token"
+    "token": "<jwt-token>",
+    "user": { /* same shape as above */ }
 }
 ```
 - `/api/connections`:

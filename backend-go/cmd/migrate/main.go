@@ -172,7 +172,8 @@ func main() {
 				IsActive:  du.IsActive,
 			}
 			if du.LastLogin != nil {
-				goUsers[i].LastLogin = *du.LastLogin
+				// entities.User.LastLogin is nullable (*time.Time) so assign pointer directly
+				goUsers[i].LastLogin = du.LastLogin
 			}
 		}
 		if err := dstDB.Clauses(clause.OnConflict{DoNothing: true}).Create(&goUsers).Error; err != nil {

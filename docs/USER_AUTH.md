@@ -43,6 +43,12 @@ LoginResponse:
 6. Set `last_login` to current timestamp (optional).
 7. Return 201 with `LoginResponse` containing token + user.
 
+## Implementation notes
+
+- The `users.last_login` column is now nullable; the Go model uses `*time.Time` so new users are inserted without a zero-date (avoids MySQL strict-mode errors).
+- Passwords are hashed with `bcrypt` before insertion.
+- On success the endpoint returns a JWT token (HS256) and the newly created user (login convenience flow).
+
 ## Login Flow (server-side)
 
 1. Bind and validate JSON payload.

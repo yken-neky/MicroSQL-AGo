@@ -40,8 +40,9 @@ func (s *AuthService) GenerateToken(user *entities.User) (string, error) {
 		return "", errors.New("invalid user")
 	}
 
-	// Update last login
-	user.LastLogin = time.Now()
+	// Update last login (nullable field)
+	now := time.Now()
+	user.LastLogin = &now
 
 	return s.jwtSvc.Generate(user.ID, s.expHours)
 }

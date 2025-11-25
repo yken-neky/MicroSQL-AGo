@@ -12,7 +12,7 @@ type User struct {
 	LastName  string    `gorm:"size:150" json:"last_name"`
 	Role      string    `gorm:"size:20;default:cliente;index" json:"role"`
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
-	LastLogin time.Time `json:"last_login"`
+	LastLogin *time.Time `gorm:"column:last_login;default:NULL" json:"last_login"`
 	IsActive  bool      `gorm:"default:true" json:"is_active"`
 }
 
