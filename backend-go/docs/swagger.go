@@ -22,15 +22,15 @@ type LoginRequest struct {
 
 // UserResponse represents a user in API responses
 type UserResponse struct {
-	ID        uint      `json:"id" example:"1"`
-	Username  string    `json:"username" example:"johndoe"`
-	Email     string    `json:"email" example:"john@example.com"`
-	FirstName string    `json:"first_name,omitempty" example:"John"`
-	LastName  string    `json:"last_name,omitempty" example:"Doe"`
-	Role      string    `json:"role" example:"cliente"`
-	CreatedAt time.Time `json:"created_at" example:"2025-11-07T10:00:00Z"`
+	ID        uint       `json:"id" example:"1"`
+	Username  string     `json:"username" example:"johndoe"`
+	Email     string     `json:"email" example:"john@example.com"`
+	FirstName string     `json:"first_name,omitempty" example:"John"`
+	LastName  string     `json:"last_name,omitempty" example:"Doe"`
+	Role      string     `json:"role" example:"cliente"`
+	CreatedAt time.Time  `json:"created_at" example:"2025-11-07T10:00:00Z"`
 	LastLogin *time.Time `json:"last_login" example:"2025-11-07T10:00:00Z"`
-	IsActive  bool      `json:"is_active" example:"true"`
+	IsActive  bool       `json:"is_active" example:"true"`
 }
 
 // AuthResponse represents successful authentication responses

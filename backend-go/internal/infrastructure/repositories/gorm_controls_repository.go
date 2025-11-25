@@ -27,7 +27,7 @@ func (r *GormControlsRepository) ListControls() ([]entities.ControlsInformation,
 // GetControlScripts obtiene los scripts asociados a un control
 func (r *GormControlsRepository) GetControlScripts(controlID uint) ([]repoport.ControlsScript, error) {
 	var scripts []repoport.ControlsScript
-	if err := r.db.Where("control_script_id_id = ?", controlID).Find(&scripts).Error; err != nil {
+	if err := r.db.Where("control_script_id = ?", controlID).Find(&scripts).Error; err != nil {
 		return nil, err
 	}
 	return scripts, nil

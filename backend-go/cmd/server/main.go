@@ -3,12 +3,16 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
 	httpadp "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http"
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/secondary/persistence/sqlite/migrations"
+	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/infrastructure/persistence"
+	gormlogger "gorm.io/gorm/logger"
+	"gorm.io/gorm"
 	cfg "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/config"
 	pkglog "github.com/yken-neky/MicroSQL-AGo/backend-go/pkg/utils"
 )
@@ -26,6 +30,11 @@ func main() {
 	if err := migrations.Migrate(db); err != nil {
 		logger.Fatal("failed to run migrations", zap.Error(err))
 	}
+
+	// Attach a zap-backed GORM logger for structured SQL logging
+	// Use a conservative slow query threshold (200ms) and Info level.
+	gormLogger := persistence.NewZapGormLogger(logger, 200*time.Millisecond, gormlogger.Info)
+	db = db.Session(&gorm.Session{Logger: gormLogger})
 
 	r := gin.Default()
 	httpadp.RegisterRoutes(r, db, logger)

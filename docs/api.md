@@ -23,6 +23,10 @@
 ### Conexiones (stub)
 - `GET /api/connections` — Stub, responde NotImplemented
 
+### Auditorías (audits)
+- `POST /api/audits/execute` — Ejecuta una auditoría (ejecuta scripts de control seleccionados o por control) **requiere JWT**
+- `GET /api/audits/:id` — Recupera el detalle de una auditoría y los resultados por script **requiere JWT**
+
 ## Ejemplo de respuesta de stub
 
 `/api/users/register` (success):
@@ -44,6 +48,103 @@
 {
     "token": "<jwt-token>",
     "user": { /* same shape as above */ }
+}
+```
+
+### Cómo usar Postman (rápido)
+
+- Paso 1 — Obtener token JWT (register/login)
+    1. Abrir Postman
+    2. Crear request POST `http://localhost:8000/api/users/register` o `POST http://localhost:8000/api/auth/login`
+    3. En el body usar `raw` JSON con contenido similar a:
+
+```json
+{
+    "username": "tester",
+    "email": "tester@example.com",
+    "password": "password123"
+}
+```
+
+    4. En la respuesta, copiar el campo `token` (JWT).
+
+- Paso 2 — Usar el token en Postman
+    - Dentro de Postman, para cualquier endpoint protegido por JWT (por ejemplo, auditorías), en la pestaña `Headers` agregar:
+        - Key: `Authorization`
+        - Value: `Bearer <jwt-token>`
+    - Alternativamente en Postman -> Authorization elegir tipo `Bearer Token` y pegar el token.
+
+### Ejemplo: Ejecutar auditoría (POST /api/audits/execute)
+
+- URL: `POST http://localhost:8000/api/audits/execute`
+- Headers:
+    - `Content-Type: application/json`
+    - `Authorization: Bearer <token>`
+- Body (raw JSON) ejemplos:
+
+1) Ejecutar por script IDs explícitos
+
+```json
+{
+    "script_ids": [1, 2, 10],
+    "database": "master"
+}
+```
+
+2) Ejecutar por control IDs (agrupa scripts)
+
+```json
+{
+    "control_ids": [3, 4],
+    "database": "master"
+}
+```
+
+Respuesta esperada (200):
+
+```json
+{
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "scripts": [
+        {"script_id": 1, "control_id": 3, "control_type": "simple", "query_sql": "SELECT 1", "passed": true},
+        {"script_id": 2, "control_id": 4, "control_type": "index", "query_sql": "SELECT COUNT(*) FROM users", "passed": true}
+    ],
+    "audit_run_id": 42
+}
+```
+
+Nota: la respuesta contiene `audit_run_id` cuando la persistencia de auditorías está habilitada; puedes usar este id para consultar el run detallado.
+
+### Ejemplo: Obtener auditoría (GET /api/audits/:id)
+
+- URL: `GET http://localhost:8000/api/audits/42` (reemplaza 42 por el id retornado en el POST)
+- Headers: `Authorization: Bearer <token>`
+
+Respuesta esperada (200):
+
+```json
+{
+    "audit": {
+        "id": 42,
+        "user_id": 1,
+        "mode": "partial",
+        "database": "master",
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "status": "completed",
+        "controls": "[3,4]",
+        "started_at": "2025-11-25T14:00:00Z",
+        "finished_at": "2025-11-25T14:00:01Z"
+    },
+    "result": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "scripts": [ /* per-script results */ ]
+    }
 }
 ```
 - `/api/connections`:

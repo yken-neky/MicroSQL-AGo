@@ -19,6 +19,9 @@ import (
 
 // RegisterRoutes wires HTTP routes with JWT middleware.
 func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
+	// attach request-scoped logging middleware
+	logMW := middleware.NewLoggingMiddleware(logger)
+	r.Use(logMW.RequestLogger())
 	// Create JWT service from config
 	cfg := config.LoadConfig()
 	jwtService := security.NewJWTService(cfg.JWTSecret)
@@ -67,10 +70,14 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
 		sqlService := sqladp.NewSQLServerAdapter(logger)
 		queryExec := sqlexec.NewSQLServerQueryExecutor()
 
-		auditUC := controlsuc.NewExecuteAuditUseCase(controlsRepo, sqlService, queryExec, connRepo)
+		// add audit repository for persistence of runs/results
+		auditRepo := repo.NewGormAuditRepository(db)
+		auditUC := controlsuc.NewExecuteAuditUseCase(controlsRepo, sqlService, queryExec, connRepo, auditRepo)
 		ah := handlers.NewAuditHandler(auditUC)
 
 		audits.POST("/execute", ah.ExecuteAudit)
+		// fetch audit run details
+		audits.GET("/:id", ah.GetAudit)
 	}
 
 	// stub connections endpoint to avoid 404s (real implementation lives elsewhere)

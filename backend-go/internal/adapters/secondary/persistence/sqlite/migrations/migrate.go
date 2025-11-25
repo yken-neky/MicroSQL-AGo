@@ -19,5 +19,7 @@ func Migrate(db *gorm.DB) error {
 		&entities.Query{},
 		&entities.ExecutionStats{},
 		&repositories.QueryResultDB{},
+		&entities.AuditRun{},
+		&entities.AuditScriptResult{},
 	)
 }

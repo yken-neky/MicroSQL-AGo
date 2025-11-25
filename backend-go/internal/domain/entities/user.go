@@ -4,16 +4,16 @@ import "time"
 
 // User represents an application user
 type User struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Username  string    `gorm:"size:150;unique;not null;index" json:"username"`
-	Email     string    `gorm:"size:254;unique;not null;index" json:"email"`
-	Password  string    `gorm:"size:255;not null" json:"-"`
-	FirstName string    `gorm:"size:150" json:"first_name"`
-	LastName  string    `gorm:"size:150" json:"last_name"`
-	Role      string    `gorm:"size:20;default:cliente;index" json:"role"`
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	ID        uint       `gorm:"primaryKey" json:"id"`
+	Username  string     `gorm:"size:150;unique;not null;index" json:"username"`
+	Email     string     `gorm:"size:254;unique;not null;index" json:"email"`
+	Password  string     `gorm:"size:255;not null" json:"-"`
+	FirstName string     `gorm:"size:150" json:"first_name"`
+	LastName  string     `gorm:"size:150" json:"last_name"`
+	Role      string     `gorm:"size:20;default:cliente;index" json:"role"`
+	CreatedAt time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	LastLogin *time.Time `gorm:"column:last_login;default:NULL" json:"last_login"`
-	IsActive  bool      `gorm:"default:true" json:"is_active"`
+	IsActive  bool       `gorm:"default:true" json:"is_active"`
 }
 
 // ActiveConnection represents a user's active SQL Server connection
