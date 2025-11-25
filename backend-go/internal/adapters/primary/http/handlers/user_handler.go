@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -152,6 +153,23 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Prevent login when user already has an active API session (single-session policy)
+	var existingSession entities.Session
+	if err := h.DB.Where("user_id = ? AND is_active = ?", user.ID, true).First(&existingSession).Error; err == nil {
+		// if session exists and is not expired, disallow new login
+		if existingSession.ExpiresAt == nil || existingSession.ExpiresAt.After(time.Now()) {
+			c.JSON(http.StatusConflict, gin.H{"error": "user already has an active session"})
+			return
+		}
+		// otherwise mark as inactive and allow login
+		existingSession.IsActive = false
+		_ = h.DB.Save(&existingSession).Error
+	} else if err != nil && err != gorm.ErrRecordNotFound {
+		h.Logger.Error("failed checking existing session", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+
 	// Generate JWT token
 	if h.JWTService == nil {
 		h.Logger.Warn("JWTService is nil, cannot generate token")
@@ -169,6 +187,16 @@ func (h *UserHandler) Login(c *gin.Context) {
 	// Update LastLogin
 	h.DB.Model(&user).Update("last_login", gorm.Expr("CURRENT_TIMESTAMP"))
 
+	// persist session for the generated token
+	expires := time.Now().Add(24 * time.Hour)
+	session := entities.Session{UserID: user.ID, Token: token, ExpiresAt: &expires, IsActive: true}
+	if err := h.DB.Create(&session).Error; err != nil {
+		h.Logger.Error("failed to persist session", zap.Error(err))
+		// return internal error since session persistence is required for single-login enforcement
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
+		return
+	}
+
 	// Return response
 	userResp := dto.UserResponse{
 		ID:        user.ID,
@@ -183,4 +211,51 @@ func (h *UserHandler) Login(c *gin.Context) {
 		Token: token,
 		User:  userResp,
 	})
+}
+
+// Logout invalidates the currently presented token and marks the API session inactive.
+// This endpoint must be called with Authorization: Bearer <token> and is protected by middleware.
+func (h *UserHandler) Logout(c *gin.Context) {
+	// Extract token from header
+	authHeader := c.GetHeader("Authorization")
+	tokenStr, err := security.ExtractBearerToken(authHeader)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header"})
+		return
+	}
+
+	// Get userID from context (set by auth middleware)
+	uid, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
+		return
+	}
+
+	userID, ok := uid.(uint)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user context"})
+		return
+	}
+
+	// find active session for this token and user
+	var s entities.Session
+	if err := h.DB.Where("user_id = ? AND token = ? AND is_active = ?", userID, tokenStr, true).First(&s).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// idempotent: nothing to do
+			c.JSON(http.StatusOK, gin.H{"message": "no active session for token"})
+			return
+		}
+		h.Logger.Error("failed reading session", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+
+	s.IsActive = false
+	if err := h.DB.Save(&s).Error; err != nil {
+		h.Logger.Error("failed deactivating session", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to logout"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }

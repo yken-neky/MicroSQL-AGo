@@ -41,11 +41,14 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
 	// swagger/info route
 	api.GET("/swagger", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"swagger": "not generated"}) })
 
-	// Auth routes (unprotected)
+	// Auth routes (login unprotected, logout protected)
 	auth := api.Group("/auth")
 	{
 		uh := handlers.NewUserHandlerWithJWT(db, logger, jwtService)
 		auth.POST("/login", uh.Login)
+		// logout is protected: user must include valid bearer token
+		authMW := middleware.NewAuthMiddleware(jwtService)
+		auth.POST("/logout", authMW.RequireAuth(), uh.Logout)
 	}
 
 	// User routes
@@ -78,6 +81,17 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
 		audits.POST("/execute", ah.ExecuteAudit)
 		// fetch audit run details
 		audits.GET("/:id", ah.GetAudit)
+	}
+
+	// Admin endpoints
+	admin := api.Group("/admin")
+	{
+		adminMW := middleware.NewAuthMiddleware(jwtService)
+		// only admin role may access admin routes
+		admin.Use(adminMW.RequireRole("admin"))
+		sessionRepo := repo.NewGormSessionRepository(db)
+		adminHandler := handlers.NewAdminHandler(db, logger, sessionRepo)
+		admin.GET("/sessions", adminHandler.ListActiveSessions)
 	}
 
 	// stub connections endpoint to avoid 404s (real implementation lives elsewhere)

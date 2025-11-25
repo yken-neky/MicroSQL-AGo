@@ -19,6 +19,8 @@
 
 ### Autenticación
 - `POST /api/auth/login` — Login usuario (valida credenciales, retorna JWT)
+    - Nota: si el usuario ya tiene una sesión activa (token vigente), el servidor responde 409 Conflict y no permitirá un nuevo login hasta cerrar sesión.
+- `POST /api/auth/logout` — Logout (invalida el token y la sesión activa) **requiere JWT**
 
 ### Conexiones (stub)
 - `GET /api/connections` — Stub, responde NotImplemented
@@ -26,6 +28,31 @@
 ### Auditorías (audits)
 - `POST /api/audits/execute` — Ejecuta una auditoría (ejecuta scripts de control seleccionados o por control) **requiere JWT**
 - `GET /api/audits/:id` — Recupera el detalle de una auditoría y los resultados por script **requiere JWT**
+
+### Administración (admin)
+- `GET /api/admin/sessions` — Lista usuarios con sesión activa y sus tokens. Requiere rol `admin` y token Bearer.
+
+Ejemplo (usar token de admin en Authorization header):
+
+Request:
+
+```http
+GET http://localhost:8000/api/admin/sessions
+Authorization: Bearer <admin-jwt-token>
+```
+
+Respuesta esperada (200):
+
+```json
+{
+    "sessions": [
+        { "session_id": 10, "user_id": 1, "username": "admin", "email": "admin@example.com", "token": "eyJ...", "expires_at": "2025-11-26T20:00:00Z", "created_at": "2025-11-25T20:00:00Z" },
+        { "session_id": 11, "user_id": 2, "username": "jane", "email": "jane@example.com", "token": "eyJ...", "expires_at": "2025-11-26T21:00:00Z", "created_at": "2025-11-25T21:00:00Z" }
+    ]
+}
+```
+
+Nota: almacenar tokens en claro puede no ser deseable en producción — considerar almacenar hash derivadas y dar a administradores sólo la visibilidad que realmente necesitan.
 
 ## Ejemplo de respuesta de stub
 
@@ -67,6 +94,19 @@
 ```
 
     4. En la respuesta, copiar el campo `token` (JWT).
+
+    3) Cerrar sesión (logout)
+
+    ```http
+    POST http://localhost:8000/api/auth/logout
+    Authorization: Bearer <token>
+    ```
+
+    Respuesta esperada (200):
+
+    ```json
+    { "message": "logged out" }
+    ```
 
 - Paso 2 — Usar el token en Postman
     - Dentro de Postman, para cualquier endpoint protegido por JWT (por ejemplo, auditorías), en la pestaña `Headers` agregar:
