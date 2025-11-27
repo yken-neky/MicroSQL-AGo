@@ -12,6 +12,9 @@ type ControlRepository interface {
 
 	// GetScriptsByIDs obtiene scripts por su ID
 	GetScriptsByIDs(ids []uint) ([]ControlsScript, error)
+
+	// GetAllScripts devuelve todos los scripts disponibles (para auditoría completa)
+	GetAllScripts() ([]ControlsScript, error)
 }
 
 // ControlsScript es la representación en repositorio de un script de control

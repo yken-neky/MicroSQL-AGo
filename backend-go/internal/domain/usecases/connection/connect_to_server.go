@@ -32,9 +32,9 @@ func NewConnectToServerUseCase(
 
 // Execute intenta establecer una conexión a SQL Server
 func (uc *ConnectToServerUseCase) Execute(ctx context.Context, userID uint, req ConnectRequest) (*entities.ActiveConnection, error) {
-	// Verificar si ya existe una conexión activa para este gestor (driver)
-	if active, _ := uc.connRepo.GetActiveByUserIDAndDriver(userID, req.Driver); active != nil {
-		return nil, errors.New("user already has an active connection for this driver")
+	// Verificar si ya existe una conexión activa para este gestor (manager)
+	if active, _ := uc.connRepo.GetActiveByUserIDAndManager(userID, req.Manager); active != nil {
+		return nil, errors.New("user already has an active connection for this manager")
 	}
 
 	// Encriptar contraseña antes de almacenar
@@ -66,6 +66,7 @@ func (uc *ConnectToServerUseCase) Execute(ctx context.Context, userID uint, req 
 	// Crear registro de conexión activa
 	conn := &entities.ActiveConnection{
 		UserID:        userID,
+		Manager:       req.Manager,
 		Driver:        req.Driver,
 		Server:        req.Server,
 		DBUser:        req.DBUser,
@@ -82,6 +83,7 @@ func (uc *ConnectToServerUseCase) Execute(ctx context.Context, userID uint, req 
 	// Registrar en el historial
 	log := &entities.ConnectionLog{
 		UserID:    userID,
+		Manager:   req.Manager,
 		Driver:    req.Driver,
 		Server:    req.Server,
 		DBUser:    req.DBUser,
@@ -99,6 +101,7 @@ func (uc *ConnectToServerUseCase) Execute(ctx context.Context, userID uint, req 
 
 // ConnectRequest representa los datos necesarios para conectar
 type ConnectRequest struct {
+	Manager  string
 	Driver   string
 	Server   string
 	Port     string

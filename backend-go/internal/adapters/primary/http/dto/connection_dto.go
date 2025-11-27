@@ -2,6 +2,7 @@ package dto
 
 // ConnectRequestDTO representa el payload para POST /api/db/{gestor}/open
 type ConnectRequestDTO struct {
+	Manager  string `json:"manager" binding:"required"`  // manager name for the connection
 	Driver   string `json:"driver" binding:"required"`   // e.g. "mssql"
 	Server   string `json:"server" binding:"required"`   // host or IP
 	Port     string `json:"port" binding:"required"`     // port e.g. "1433"
@@ -13,6 +14,7 @@ type ConnectRequestDTO struct {
 type ConnectionResponseDTO struct {
 	ID               uint   `json:"id"`
 	UserID           uint   `json:"user_id"`
+	Manager          string `json:"manager"`
 	Driver           string `json:"driver"`
 	Server           string `json:"server"`
 	DBUser           string `json:"db_user"`

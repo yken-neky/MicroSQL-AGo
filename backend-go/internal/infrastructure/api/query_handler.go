@@ -25,8 +25,8 @@ func NewQueryHandler(eq *queries.ExecuteQueryUseCase, qr repositories.QueryRepos
 // ExecuteQuery maneja la ejecución de consultas SQL
 func (h *QueryHandler) ExecuteQuery(c *gin.Context) {
 	// For security, arbitrary SQL execution via the API is disallowed.
-	// Users must execute predefined control scripts via the audits endpoint.
-	c.JSON(http.StatusForbidden, gin.H{"error": "execution of raw SQL via API is forbidden; use /api/audits/execute to run predefined control scripts"})
+	// Users must execute predefined control scripts via the audits endpoint (now per-manager): /api/db/{gestor}/audits/execute
+	c.JSON(http.StatusForbidden, gin.H{"error": "execution of raw SQL via API is forbidden; use /api/db/{gestor}/audits/execute to run predefined control scripts"})
 }
 
 // GetQueryResult obtiene el resultado de una consulta por ID

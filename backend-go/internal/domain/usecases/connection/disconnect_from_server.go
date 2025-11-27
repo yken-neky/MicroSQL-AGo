@@ -28,9 +28,9 @@ func NewDisconnectFromServerUseCase(
 }
 
 // Execute realiza la desconexión de SQL Server
-func (uc *DisconnectFromServerUseCase) Execute(ctx context.Context, userID uint, driver string) error {
-	// Obtener conexión activa
-	active, err := uc.connRepo.GetActiveByUserIDAndDriver(userID, driver)
+func (uc *DisconnectFromServerUseCase) Execute(ctx context.Context, userID uint, manager string) error {
+	// Obtener conexión activa para el gestor indicado
+	active, err := uc.connRepo.GetActiveByUserIDAndManager(userID, manager)
 	if err != nil {
 		return fmt.Errorf("failed to get active connection: %w", err)
 	}
@@ -39,18 +39,16 @@ func (uc *DisconnectFromServerUseCase) Execute(ctx context.Context, userID uint,
 		return errors.New("no active connection found for this driver")
 	}
 
-	// Actualizar registro de conexión activa (no gestionamos cierre físico del pool aquí)
-	active.IsConnected = false
-	now := time.Now()
-	active.LastDisconnected = &now
-
-	if err := uc.connRepo.UpdateActive(active); err != nil {
-		return fmt.Errorf("failed to update connection status: %w", err)
+	// Eliminar el registro de conexión activa para que el usuario pueda crear otra conexión
+	// con el mismo manager posteriormente
+	if err := uc.connRepo.DeleteActiveByUserAndManager(userID, manager); err != nil {
+		return fmt.Errorf("failed to delete active connection: %w", err)
 	}
 
 	// Registrar en el historial
 	log := &entities.ConnectionLog{
 		UserID:    userID,
+		Manager:   active.Manager,
 		Driver:    active.Driver,
 		Server:    active.Server,
 		DBUser:    active.DBUser,

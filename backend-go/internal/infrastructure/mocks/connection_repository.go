@@ -23,6 +23,14 @@ func (m *MockConnectionRepository) GetActiveByUserID(userID uint) (*entities.Act
 	return args.Get(0).(*entities.ActiveConnection), args.Error(1)
 }
 
+func (m *MockConnectionRepository) GetActiveByUserIDAndManager(userID uint, manager string) (*entities.ActiveConnection, error) {
+	args := m.Called(userID, manager)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*entities.ActiveConnection), args.Error(1)
+}
+
 func (m *MockConnectionRepository) UpdateActive(conn *entities.ActiveConnection) error {
 	args := m.Called(conn)
 	return args.Error(0)
@@ -33,8 +41,21 @@ func (m *MockConnectionRepository) DeleteActive(userID uint) error {
 	return args.Error(0)
 }
 
+func (m *MockConnectionRepository) DeleteActiveByUserAndManager(userID uint, manager string) error {
+	args := m.Called(userID, manager)
+	return args.Error(0)
+}
+
 func (m *MockConnectionRepository) ListActive() ([]*entities.ActiveConnection, error) {
 	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*entities.ActiveConnection), args.Error(1)
+}
+
+func (m *MockConnectionRepository) ListActiveByUser(userID uint) ([]*entities.ActiveConnection, error) {
+	args := m.Called(userID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

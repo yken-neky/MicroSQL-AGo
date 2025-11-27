@@ -19,7 +19,8 @@ type User struct {
 // ActiveConnection represents a user's active SQL Server connection
 type ActiveConnection struct {
 	ID               uint       `gorm:"primaryKey" json:"id"`
-	UserID           uint       `gorm:"uniqueIndex;not null" json:"user_id"`
+	UserID           uint       `gorm:"not null;uniqueIndex:idx_user_manager" json:"user_id"`
+	Manager          string     `gorm:"size:50;not null" json:"manager"`
 	Driver           string     `gorm:"size:255;not null" json:"driver"`
 	Server           string     `gorm:"size:255;not null" json:"server"`
 	DBUser           string     `gorm:"column:db_user;size:255;not null" json:"db_user"`

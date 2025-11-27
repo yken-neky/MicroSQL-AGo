@@ -3,6 +3,7 @@ package controls
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/domain/entities"
@@ -17,14 +18,17 @@ type ExecuteAuditUseCase struct {
 	queryExec   services.QueryExecutor
 	connRepo    repositories.ConnectionRepository
 	auditRepo   repositories.AuditRepository
+	encryptSvc  services.EncryptionService
 }
 
+// NewExecuteAuditUseCase crea una nueva instancia con todas las dependencias
 func NewExecuteAuditUseCase(
 	cr repositories.ControlRepository,
 	ss services.SQLServerService,
 	qe services.QueryExecutor,
 	conn repositories.ConnectionRepository,
 	ar repositories.AuditRepository,
+	enc services.EncryptionService,
 ) *ExecuteAuditUseCase {
 	return &ExecuteAuditUseCase{
 		controlRepo: cr,
@@ -32,6 +36,7 @@ func NewExecuteAuditUseCase(
 		queryExec:   qe,
 		connRepo:    conn,
 		auditRepo:   ar,
+		encryptSvc:  enc,
 	}
 }
 
@@ -40,6 +45,7 @@ type AuditRequest struct {
 	ControlIDs []uint `json:"control_ids,omitempty"`
 	ScriptIDs  []uint `json:"script_ids,omitempty"`
 	Database   string `json:"database"`
+	FullAudit  bool   `json:"full_audit,omitempty"`
 }
 
 // ScriptResult es el resultado de ejecutar un script de control
@@ -56,17 +62,18 @@ type ScriptResult struct {
 type AuditResult struct {
 	Total      int            `json:"total"`
 	Passed     int            `json:"passed"`
+	Manual     int            `json:"manual_count,omitempty"`
 	Failed     int            `json:"failed"`
 	Scripts    []ScriptResult `json:"scripts"`
 	AuditRunID uint           `json:"audit_run_id,omitempty"`
 }
 
 // Execute ejecuta una auditoría con controles o scripts indicados
-func (uc *ExecuteAuditUseCase) Execute(ctx context.Context, userID uint, req AuditRequest) (*AuditResult, error) {
-	// Prepare and persist AuditRun
+func (uc *ExecuteAuditUseCase) Execute(ctx context.Context, userID uint, manager string, req AuditRequest) (*AuditResult, error) {
+	// Prepare and persist AuditRun (mode: partial|full)
 	mode := "partial"
-	if len(req.ControlIDs) == 0 && len(req.ScriptIDs) > 0 {
-		mode = "partial"
+	if req.FullAudit {
+		mode = "full"
 	}
 	// if user provided control IDs but empty scriptIDs, still partial; in future full mode could be explicit
 	run := &entities.AuditRun{
@@ -81,25 +88,83 @@ func (uc *ExecuteAuditUseCase) Execute(ctx context.Context, userID uint, req Aud
 		// use fmt to build simple comma-separated list
 		run.Controls = fmt.Sprintf("%v", req.ControlIDs)
 	}
+	if req.FullAudit {
+		run.Controls = "ALL"
+	}
 
 	if uc.auditRepo != nil {
 		if err := uc.auditRepo.CreateAuditRun(run); err != nil {
 			return nil, err
 		}
 	}
-	// Verificar conexión activa
-	conn, err := uc.connRepo.GetActiveByUserID(userID)
+	// Verificar conexión activa — preferir la conexión activa para el gestor/driver pedido
+	// Intentar obtener la conexión activa específica por user+driver
+	conn, err := uc.connRepo.GetActiveByUserIDAndManager(userID, manager)
 	if err != nil {
 		return nil, err
 	}
-	if conn == nil || !conn.IsConnected {
-		return nil, fmt.Errorf("no active connection")
-	}
+	// Si no existe conexión específica, buscar en todas las activas y aplicar heurísticas
+	if conn == nil {
+		conns, err := uc.connRepo.ListActiveByUser(userID)
+		if err != nil {
+			return nil, err
+		}
+		if len(conns) == 0 {
+			return nil, fmt.Errorf("no active connection")
+		}
 
-	// Recolectar scripts desde controlIDs y scriptIDs
+		// Preferir conexiones que parezcan apuntar a SQL Server (driver contiene sql/mssql/odbc)
+		var candidates []*entities.ActiveConnection
+		for _, c := range conns {
+			if !c.IsConnected {
+				continue
+			}
+			low := strings.ToLower(c.Driver)
+			if strings.Contains(low, "mssql") {
+				candidates = append(candidates, c)
+			}
+		}
+
+		// Si no hay candidatos específicos, usar todos los conectados
+		if len(candidates) == 0 {
+			for _, c := range conns {
+				if c.IsConnected {
+					candidates = append(candidates, c)
+				}
+			}
+		}
+
+		// Elegir la más reciente (LastConnected)
+		var latestConn *entities.ActiveConnection
+		var latest time.Time
+		for _, c := range candidates {
+			if c.LastConnected.After(latest) {
+				latest = c.LastConnected
+				latestConn = c
+			}
+		}
+		if latestConn == nil {
+			return nil, fmt.Errorf("no active connection")
+		}
+		// assign selected connection to outer variable
+		conn = latestConn
+	}
+	// Recolectar scripts desde full audit OR controlIDs/scriptIDs
+	// If FullAudit==true we ignore control_ids/script_ids and load all scripts
+	// from the control repository.
 	scriptsMap := make(map[uint]repositories.ControlsScript)
 
-	if len(req.ControlIDs) > 0 {
+	if req.FullAudit {
+		all, err := uc.controlRepo.GetAllScripts()
+		if err != nil {
+			return nil, err
+		}
+		for _, sc := range all {
+			scriptsMap[sc.ID] = sc
+		}
+	}
+
+	if !req.FullAudit && len(req.ControlIDs) > 0 {
 		for _, cid := range req.ControlIDs {
 			s, err := uc.controlRepo.GetControlScripts(cid)
 			if err != nil {
@@ -111,7 +176,7 @@ func (uc *ExecuteAuditUseCase) Execute(ctx context.Context, userID uint, req Aud
 		}
 	}
 
-	if len(req.ScriptIDs) > 0 {
+	if !req.FullAudit && len(req.ScriptIDs) > 0 {
 		s, err := uc.controlRepo.GetScriptsByIDs(req.ScriptIDs)
 		if err != nil {
 			return nil, err
@@ -127,12 +192,20 @@ func (uc *ExecuteAuditUseCase) Execute(ctx context.Context, userID uint, req Aud
 	}
 
 	// Conectar a SQL Server usando la conexión activa
+	// Desencriptar contraseña si está cifrada (fallback: usarla tal cual)
+	password := conn.Password
+	if uc.encryptSvc != nil {
+		if dec, derr := uc.encryptSvc.Decrypt(conn.Password); derr == nil && dec != "" {
+			password = dec
+		}
+	}
+
 	cfg := services.SQLServerConfig{
 		Driver:   conn.Driver,
 		Server:   conn.Server,
 		Port:     "1433",
 		User:     conn.DBUser,
-		Password: conn.Password,
+		Password: password,
 		Database: req.Database,
 		Options:  map[string]string{"TrustServerCertificate": "true"},
 	}
@@ -150,6 +223,26 @@ func (uc *ExecuteAuditUseCase) Execute(ctx context.Context, userID uint, req Aud
 			ControlID:   sc.ControlScriptRef,
 			ControlType: sc.ControlType,
 			QuerySQL:    sc.QuerySQL,
+		}
+
+		// If script is manual, treat it as passed (manual checks are external)
+		if strings.ToLower(strings.TrimSpace(sc.ControlType)) == "manual" {
+			sr.Passed = true
+			// Count manual as passed
+			res.Passed++
+			res.Manual++
+			res.Scripts = append(res.Scripts, sr)
+			if uc.auditRepo != nil {
+				resRow := &entities.AuditScriptResult{
+					AuditRunID: run.ID,
+					ScriptID:   sc.ID,
+					ControlID:  sc.ControlScriptRef,
+					QuerySQL:   sc.QuerySQL,
+					Passed:     true,
+				}
+				_ = uc.auditRepo.CreateScriptResult(resRow)
+			}
+			continue
 		}
 
 		// Validar script
@@ -271,6 +364,9 @@ func (uc *ExecuteAuditUseCase) GetAuditRun(ctx context.Context, userID uint, aud
 			QuerySQL:    r.QuerySQL,
 			Passed:      r.Passed,
 			Error:       r.Error,
+		}
+		if r.QuerySQL == "" {
+			res.Manual++
 		}
 		res.Scripts = append(res.Scripts, sr)
 	}

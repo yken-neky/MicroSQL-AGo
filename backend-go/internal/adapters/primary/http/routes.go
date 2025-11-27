@@ -62,29 +62,7 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
 		users.POST("/register", uh.Register)
 	}
 
-	// Audit endpoints - execute predefined control scripts (requires auth)
-	audits := api.Group("/audits")
-	{
-		// Apply JWT auth middleware
-		authMW := middleware.NewAuthMiddleware(jwtService)
-		audits.Use(authMW.RequireAuth())
-
-		// wire dependencies for audit
-		controlsRepo := repo.NewGormControlsRepository(db)
-		connRepo := repo.NewGormConnectionRepository(db)
-
-		sqlService := sqladp.NewSQLServerAdapter(logger)
-		queryExec := sqlexec.NewSQLServerQueryExecutor()
-
-		// add audit repository for persistence of runs/results
-		auditRepo := repo.NewGormAuditRepository(db)
-		auditUC := controlsuc.NewExecuteAuditUseCase(controlsRepo, sqlService, queryExec, connRepo, auditRepo)
-		ah := handlers.NewAuditHandler(auditUC)
-
-		audits.POST("/execute", ah.ExecuteAudit)
-		// fetch audit run details
-		audits.GET("/:id", ah.GetAudit)
-	}
+	// NOTE: Audit endpoints are attached under /api/db/:manager/audits to make the manager explicit
 
 	// Admin endpoints
 	admin := api.Group("/admin")
@@ -113,7 +91,9 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
 		getActiveUC := connectionuc.NewGetActiveConnectionUseCase(connRepo)
 		listUC := connectionuc.NewListActiveConnectionsUseCase(connRepo)
 
-		ch := handlers.NewConnectionHandler(connectUC, disconnectUC, getActiveUC, listUC, logger)
+		// history UC to list connection logs
+		historyUC := connectionuc.NewListConnectionHistoryUseCase(repo.NewGormConnectionRepository(db))
+		ch := handlers.NewConnectionHandler(connectUC, disconnectUC, getActiveUC, listUC, historyUC, logger)
 
 		// List all active connections for user across drivers
 		dbGroup.GET("/connections", ch.GetActive)
@@ -127,6 +107,16 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
 			mgr.DELETE("/close", ch.Disconnect)
 			// get active connection for manager: GET /api/db/:manager/connection
 			mgr.GET("/connection", ch.GetActive)
+
+			// Audits routes under the explicit manager: /api/db/:manager/audits
+			controlsRepo := repo.NewGormControlsRepository(db)
+			queryExec := sqlexec.NewSQLServerQueryExecutor()
+			auditRepo := repo.NewGormAuditRepository(db)
+			auditUC := controlsuc.NewExecuteAuditUseCase(controlsRepo, sqlService, queryExec, connRepo, auditRepo, encService)
+			ah := handlers.NewAuditHandler(auditUC)
+
+			mgr.POST("/audits/execute", ah.ExecuteAudit)
+			mgr.GET("/audits/:id", ah.GetAudit)
 		}
 	}
 }

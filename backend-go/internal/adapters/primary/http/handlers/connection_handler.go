@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,15 +14,16 @@ import (
 
 // ConnectionHandler maneja endpoints para conectar / desconectar a SQL Server
 type ConnectionHandler struct {
-	connectUC    *connectionuc.ConnectToServerUseCase
-	disconnectUC *connectionuc.DisconnectFromServerUseCase
-	getActiveUC  *connectionuc.GetActiveConnectionUseCase
-	listActiveUC *connectionuc.ListActiveConnectionsUseCase
-	logger       *zap.Logger
+	connectUC     *connectionuc.ConnectToServerUseCase
+	disconnectUC  *connectionuc.DisconnectFromServerUseCase
+	getActiveUC   *connectionuc.GetActiveConnectionUseCase
+	listActiveUC  *connectionuc.ListActiveConnectionsUseCase
+	listHistoryUC *connectionuc.ListConnectionHistoryUseCase
+	logger        *zap.Logger
 }
 
-func NewConnectionHandler(cu *connectionuc.ConnectToServerUseCase, du *connectionuc.DisconnectFromServerUseCase, gu *connectionuc.GetActiveConnectionUseCase, lu *connectionuc.ListActiveConnectionsUseCase, logger *zap.Logger) *ConnectionHandler {
-	return &ConnectionHandler{connectUC: cu, disconnectUC: du, getActiveUC: gu, listActiveUC: lu, logger: logger}
+func NewConnectionHandler(cu *connectionuc.ConnectToServerUseCase, du *connectionuc.DisconnectFromServerUseCase, gu *connectionuc.GetActiveConnectionUseCase, lu *connectionuc.ListActiveConnectionsUseCase, lhu *connectionuc.ListConnectionHistoryUseCase, logger *zap.Logger) *ConnectionHandler {
+	return &ConnectionHandler{connectUC: cu, disconnectUC: du, getActiveUC: gu, listActiveUC: lu, listHistoryUC: lhu, logger: logger}
 }
 
 // Connect crea una conexión activa para el usuario y la persiste
@@ -48,6 +50,7 @@ func (h *ConnectionHandler) Connect(c *gin.Context) {
 		return
 	}
 	input := connectionuc.ConnectRequest{
+		Manager:  req.Manager,
 		Driver:   req.Driver,
 		Server:   req.Server,
 		Port:     req.Port,
@@ -56,7 +59,7 @@ func (h *ConnectionHandler) Connect(c *gin.Context) {
 	}
 
 	// override driver with manager from path
-	input.Driver = manager
+	// input.Driver = manager
 
 	conn, err := h.connectUC.Execute(c.Request.Context(), userID, input)
 	if err != nil {
@@ -67,6 +70,7 @@ func (h *ConnectionHandler) Connect(c *gin.Context) {
 	resp := dto.ConnectionResponseDTO{
 		ID:            conn.ID,
 		UserID:        conn.UserID,
+		Manager:       conn.Manager,
 		Driver:        conn.Driver,
 		Server:        conn.Server,
 		DBUser:        conn.DBUser,
@@ -128,6 +132,7 @@ func (h *ConnectionHandler) GetActive(c *gin.Context) {
 			resp = append(resp, dto.ConnectionResponseDTO{
 				ID:               conn.ID,
 				UserID:           conn.UserID,
+				Manager:          conn.Manager,
 				Driver:           conn.Driver,
 				Server:           conn.Server,
 				DBUser:           conn.DBUser,
@@ -172,4 +177,45 @@ func (h *ConnectionHandler) GetActive(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"connection": resp})
+}
+
+// GetHistory devuelve logs de conexión del usuario filtrados por manager (si se pasa)
+func (h *ConnectionHandler) GetHistory(c *gin.Context) {
+	if h.listHistoryUC == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "history usecase not configured"})
+		return
+	}
+
+	uid, _ := c.Get("userID")
+	userID := uid.(uint)
+
+	manager := c.Param("manager")
+	// Accept limit/offset query params
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	list, err := h.listHistoryUC.Execute(c.Request.Context(), userID, connectionuc.HistoryFilters{Limit: limit, Offset: offset})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Filter by manager if provided
+	var out []dto.ConnectionLogDTO
+	for _, l := range list {
+		if manager != "" && manager != l.Driver {
+			continue
+		}
+		out = append(out, dto.ConnectionLogDTO{
+			ID:        l.ID,
+			UserID:    l.UserID,
+			Driver:    l.Driver,
+			Server:    l.Server,
+			DBUser:    l.DBUser,
+			Timestamp: l.Timestamp.Format(time.RFC3339),
+			Status:    l.Status,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"logs": out})
 }

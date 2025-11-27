@@ -41,3 +41,12 @@ func (r *GormControlsRepository) GetScriptsByIDs(ids []uint) ([]repoport.Control
 	}
 	return scripts, nil
 }
+
+// GetAllScripts devuelve todos los scripts de control
+func (r *GormControlsRepository) GetAllScripts() ([]repoport.ControlsScript, error) {
+	var scripts []repoport.ControlsScript
+	if err := r.db.Find(&scripts).Error; err != nil {
+		return nil, err
+	}
+	return scripts, nil
+}

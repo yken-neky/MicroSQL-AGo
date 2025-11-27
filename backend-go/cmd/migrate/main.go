@@ -197,9 +197,11 @@ func main() {
 				lastConnected = time.Now()
 			}
 			goConns[i] = entities.ActiveConnection{
-				ID:            dc.ID,
-				UserID:        dc.UserID,
+				ID:     dc.ID,
+				UserID: dc.UserID,
+				// older schema stores driver string; populate Manager from Driver for compatibility
 				Driver:        dc.Driver,
+				Manager:       dc.Driver,
 				Server:        dc.Server,
 				DBUser:        dc.DBUser,
 				Password:      dc.Password,

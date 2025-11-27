@@ -26,8 +26,9 @@ func (h *AuditHandler) ExecuteAudit(c *gin.Context) {
 	}
 
 	userID, _ := c.Get("userID")
+	manager := c.Param("manager")
 
-	res, err := h.auditUC.Execute(c.Request.Context(), userID.(uint), req)
+	res, err := h.auditUC.Execute(c.Request.Context(), userID.(uint), manager, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

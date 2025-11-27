@@ -15,7 +15,6 @@
 ### Usuarios
 - `GET /api/users/health` — Health de usuarios
 - `POST /api/users/register` — Registrar usuario (crea usuario en BD y retorna JWT)
-- `POST /api/users/login` — Login usuario (valida credenciales, retorna JWT)
 
 ### Autenticación
 - `POST /api/auth/login` — Login usuario (valida credenciales, retorna JWT)
@@ -26,8 +25,10 @@
 - `GET /api/connections` — Stub, responde NotImplemented
 
 ### Auditorías (audits)
-- `POST /api/audits/execute` — Ejecuta una auditoría (ejecuta scripts de control seleccionados o por control) **requiere JWT**
-- `GET /api/audits/:id` — Recupera el detalle de una auditoría y los resultados por script **requiere JWT**
+Rutas de auditoría ahora están agrupadas por gestor y siguen el patrón `/api/db/{gestor}/audits`.
+
+- `POST /api/db/{gestor}/audits/execute` — Ejecuta una auditoría usando la conexión activa del usuario para `{gestor}` (ejecuta scripts de control seleccionados o por control). **requiere JWT**
+- `GET /api/db/{gestor}/audits/:id` — Recupera el detalle de una auditoría y los resultados por script (audit run). **requiere JWT**
 
 ### Administración (admin)
 - `GET /api/admin/sessions` — Lista usuarios con sesión activa y sus tokens. Requiere rol `admin` y token Bearer.
@@ -114,15 +115,15 @@ Nota: almacenar tokens en claro puede no ser deseable en producción — conside
         - Value: `Bearer <jwt-token>`
     - Alternativamente en Postman -> Authorization elegir tipo `Bearer Token` y pegar el token.
 
-### Ejemplo: Ejecutar auditoría (POST /api/audits/execute)
+### Ejemplo: Ejecutar auditoría (POST /api/db/{gestor}/audits/execute)
 
-- URL: `POST http://localhost:8000/api/audits/execute`
+ - URL: `POST http://localhost:8000/api/db/mssql/audits/execute`
 - Headers:
     - `Content-Type: application/json`
     - `Authorization: Bearer <token>`
 - Body (raw JSON) ejemplos:
 
-1) Ejecutar por script IDs explícitos
+1) Ejecutar por script IDs explícitos (usa la conexión activa para el gestor)
 
 ```json
 {
@@ -137,6 +138,20 @@ Nota: almacenar tokens en claro puede no ser deseable en producción — conside
 {
     "control_ids": [3, 4],
     "database": "master"
+
+}
+
+3) Ejecutar auditoría completa (ignora control_ids / script_ids)
+
+```json
+{
+    "full_audit": true,
+    "database": "master"
+}
+```
+
+Notes:
+- Manual controls (controls whose scripts are of type `manual`) are not executed on the server. For the purpose of the audit response, manual controls are considered "passed" (they require manual verification by the auditor) and are included in the `manual_count` field of the response.
 }
 ```
 
@@ -157,9 +172,9 @@ Respuesta esperada (200):
 
 Nota: la respuesta contiene `audit_run_id` cuando la persistencia de auditorías está habilitada; puedes usar este id para consultar el run detallado.
 
-### Ejemplo: Obtener auditoría (GET /api/audits/:id)
+### Ejemplo: Obtener auditoría (GET /api/db/{gestor}/audits/:id)
 
-- URL: `GET http://localhost:8000/api/audits/42` (reemplaza 42 por el id retornado en el POST)
+ - URL: `GET http://localhost:8000/api/db/mssql/audits/42` (reemplaza 42 por el id retornado en el POST)
 - Headers: `Authorization: Bearer <token>`
 
 Respuesta esperada (200):
@@ -208,7 +223,8 @@ Estas rutas permiten a un usuario registrar una conexión activa a un servidor S
             "password": "P@ssw0rd"
         }
         ```
-    - Respuesta (200): contiene la información de la conexión (sin contraseñas en claro).
+        - Respuesta (200): contiene la información de la conexión (sin contraseñas en claro).
+            La respuesta y la tabla `active_connections` ahora incluyen el campo `manager` que representa el gestor/driver lógico al que pertenece la conexión.
     - Seguridad: la contraseña se cifra antes de almacenarse en la base de datos (AES-GCM con la clave en `ENCRYPTION_KEY`).
 
 - `GET /api/db/connections` — Obtener la lista de conexiones activas del usuario en todos los gestores (1 por gestor máximo) **requiere JWT**
@@ -234,6 +250,7 @@ Respuesta esperada (200):
     "connection": {
         "id": 2,
         "user_id": 5,
+        "manager": "mssql",
         "driver": "mssql",
         "server": "localhost",
         "db_user": "sa",

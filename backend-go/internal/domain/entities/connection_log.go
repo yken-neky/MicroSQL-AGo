@@ -6,6 +6,7 @@ import "time"
 type ConnectionLog struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	UserID    uint      `gorm:"not null;index" json:"user_id"`
+	Manager   string    `gorm:"not null" json:"manager"`
 	Driver    string    `gorm:"not null" json:"driver"`
 	Server    string    `gorm:"not null" json:"server"`
 	DBUser    string    `gorm:"column:db_user;not null" json:"db_user"`

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -117,21 +118,32 @@ func (a *SQLServerAdapter) Close(db *sql.DB) error {
 
 // buildDSN construye la cadena de conexión para SQL Server
 func buildDSN(cfg services.SQLServerConfig) string {
-	dsn := fmt.Sprintf("sqlserver://%s:%s@%s:%s?database=%s",
-		cfg.User, cfg.Password, cfg.Server, cfg.Port, cfg.Database)
-
-	// Add additional options
-	for k, v := range cfg.Options {
-		// Some callers may provide yes/no; the driver expects boolean strings parseable by strconv.ParseBool
-		// Normalize common synonyms: yes -> true, no -> false
-		lower := strings.ToLower(v)
-		if lower == "yes" {
-			v = "yes"
-		} else if lower == "no" {
-			v = "no"
-		}
-		dsn += fmt.Sprintf("&%s=%s", k, v)
+	// Build a proper url so the username/password are correctly encoded
+	u := url.URL{
+		Scheme: "sqlserver",
+		Host:   fmt.Sprintf("%s:%s", cfg.Server, cfg.Port),
 	}
 
-	return dsn
+	if cfg.User != "" {
+		u.User = url.UserPassword(cfg.User, cfg.Password)
+	}
+
+	q := url.Values{}
+	if cfg.Database != "" {
+		q.Set("database", cfg.Database)
+	}
+
+	// Add additional options and normalize booleans yes/no -> true/false
+	for k, v := range cfg.Options {
+		lower := strings.ToLower(v)
+		if lower == "yes" {
+			v = "true"
+		} else if lower == "no" {
+			v = "false"
+		}
+		q.Set(k, v)
+	}
+
+	u.RawQuery = q.Encode()
+	return u.String()
 }
