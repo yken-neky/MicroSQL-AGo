@@ -78,7 +78,7 @@ Formato de cada ítem:
 - Conexiones SQL (connect/disconnect/list/detail)
   - Prioridad: Alta
   - Est. esfuerzo: 12h
-  - Criterio de aceptación: `POST /api/connections` crea conexión (persistida cifrada), `GET /api/connections` lista, `DELETE /api/connections/{id}` cierra.
+  - Criterio de aceptación: `POST /api/db/{gestor}/open` crea conexión (persistida cifrada), `GET /api/db/connections` lista, `DELETE /api/db/{gestor}/close` cierra.
 
 - Ejecución de consultas (async/streaming/pagination)
   - Prioridad: Alta

@@ -28,15 +28,15 @@ func NewDisconnectFromServerUseCase(
 }
 
 // Execute realiza la desconexión de SQL Server
-func (uc *DisconnectFromServerUseCase) Execute(ctx context.Context, userID uint) error {
+func (uc *DisconnectFromServerUseCase) Execute(ctx context.Context, userID uint, driver string) error {
 	// Obtener conexión activa
-	active, err := uc.connRepo.GetActiveByUserID(userID)
+	active, err := uc.connRepo.GetActiveByUserIDAndDriver(userID, driver)
 	if err != nil {
 		return fmt.Errorf("failed to get active connection: %w", err)
 	}
 
 	if active == nil {
-		return errors.New("no active connection found")
+		return errors.New("no active connection found for this driver")
 	}
 
 	// Actualizar registro de conexión activa (no gestionamos cierre físico del pool aquí)

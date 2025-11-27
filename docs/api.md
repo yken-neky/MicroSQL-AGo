@@ -194,6 +194,55 @@ Respuesta esperada (200):
 }
 ```
 
+### Conexiones (DB por gestor)
+
+Estas rutas permiten a un usuario registrar una conexión activa a un servidor SQL para un gestor específico, listarlas y cerrarlas.
+
+- `POST /api/db/{gestor}/open` — Crear/abrir una conexión activa para el gestor indicado **requiere JWT**
+    - Body (JSON):
+        ```json
+        {
+            "server": "dbserver.local",
+            "port": "1433",
+            "db_user": "dbuser",
+            "password": "P@ssw0rd"
+        }
+        ```
+    - Respuesta (200): contiene la información de la conexión (sin contraseñas en claro).
+    - Seguridad: la contraseña se cifra antes de almacenarse en la base de datos (AES-GCM con la clave en `ENCRYPTION_KEY`).
+
+- `GET /api/db/connections` — Obtener la lista de conexiones activas del usuario en todos los gestores (1 por gestor máximo) **requiere JWT**
+
+- `GET /api/db/{gestor}/connection` — Obtener la conexión activa del usuario para el gestor indicado **requiere JWT**
+
+- `DELETE /api/db/{gestor}/close` — Cerrar / eliminar la conexión activa del usuario para el gestor indicado **requiere JWT**
+
+Ejemplo rápido en Postman para conectar (gestor mssql):
+
+```http
+POST http://localhost:8000/api/db/mssql/open
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{ "server": "localhost", "port": "1433", "db_user": "sa", "password": "YourStrong!Passw0rd" }
+```
+
+Respuesta esperada (200):
+
+```json
+{
+    "connection": {
+        "id": 2,
+        "user_id": 5,
+        "driver": "mssql",
+        "server": "localhost",
+        "db_user": "sa",
+        "is_connected": true,
+        "last_connected": "2025-11-25T21:00:00Z"
+    }
+}
+```
+
 ## Notas
 - Todos los endpoints reales de negocio (queries, conexiones, roles, etc.) aún no están implementados.
 - Los endpoints actuales solo sirven para probar la estructura y evitar errores 404.

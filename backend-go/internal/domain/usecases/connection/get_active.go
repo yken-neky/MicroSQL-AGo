@@ -15,12 +15,23 @@ type GetActiveConnectionUseCase struct {
 func NewGetActiveConnectionUseCase(
 	cr repositories.ConnectionRepository,
 ) *GetActiveConnectionUseCase {
-	return &GetActiveConnectionUseCase{
-		connRepo: cr,
-	}
+	return &GetActiveConnectionUseCase{connRepo: cr}
 }
 
-// Execute obtiene la conexión activa del usuario si existe
-func (uc *GetActiveConnectionUseCase) Execute(ctx context.Context, userID uint) (*entities.ActiveConnection, error) {
-	return uc.connRepo.GetActiveByUserID(userID)
+// Execute obtiene la conexión activa del usuario para el driver/gestor indicado
+func (uc *GetActiveConnectionUseCase) Execute(ctx context.Context, userID uint, driver string) (*entities.ActiveConnection, error) {
+	return uc.connRepo.GetActiveByUserIDAndDriver(userID, driver)
+}
+
+// ListActiveConnectionsUseCase lista todas las conexiones activas de un usuario (todos los gestores)
+type ListActiveConnectionsUseCase struct {
+	connRepo repositories.ConnectionRepository
+}
+
+func NewListActiveConnectionsUseCase(cr repositories.ConnectionRepository) *ListActiveConnectionsUseCase {
+	return &ListActiveConnectionsUseCase{connRepo: cr}
+}
+
+func (uc *ListActiveConnectionsUseCase) Execute(ctx context.Context, userID uint) ([]*entities.ActiveConnection, error) {
+	return uc.connRepo.ListActiveByUser(userID)
 }

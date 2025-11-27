@@ -12,9 +12,12 @@ import (
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/secondary/security"
 	sqladp "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/secondary/sqlserver"
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/config"
+	connectionuc "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/domain/usecases/connection"
 	controlsuc "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/domain/usecases/controls"
 	repo "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/infrastructure/repositories"
 	sqlexec "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/infrastructure/sqlserver"
+
+	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/secondary/encryption"
 )
 
 // RegisterRoutes wires HTTP routes with JWT middleware.
@@ -94,8 +97,36 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
 		admin.GET("/sessions", adminHandler.ListActiveSessions)
 	}
 
-	// stub connections endpoint to avoid 404s (real implementation lives elsewhere)
-	api.GET("/connections", func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "connections endpoint not implemented yet"})
-	})
+	// DB connection endpoints: /api/db and /api/db/:manager
+	dbGroup := api.Group("/db")
+	{
+		connAuth := middleware.NewAuthMiddleware(jwtService)
+		dbGroup.Use(connAuth.RequireAuth())
+
+		connRepo := repo.NewGormConnectionRepository(db)
+		sqlService := sqladp.NewSQLServerAdapter(logger)
+		// encryption service for persisting DB passwords
+		encService := encryption.NewAESGCMService(cfg.EncKey)
+
+		connectUC := connectionuc.NewConnectToServerUseCase(connRepo, sqlService, encService)
+		disconnectUC := connectionuc.NewDisconnectFromServerUseCase(connRepo, sqlService)
+		getActiveUC := connectionuc.NewGetActiveConnectionUseCase(connRepo)
+		listUC := connectionuc.NewListActiveConnectionsUseCase(connRepo)
+
+		ch := handlers.NewConnectionHandler(connectUC, disconnectUC, getActiveUC, listUC, logger)
+
+		// List all active connections for user across drivers
+		dbGroup.GET("/connections", ch.GetActive)
+
+		// per-manager operations
+		mgr := dbGroup.Group(":manager")
+		{
+			// open a connection: POST /api/db/:manager/open
+			mgr.POST("/open", ch.Connect)
+			// close connection for manager: DELETE /api/db/:manager/close
+			mgr.DELETE("/close", ch.Disconnect)
+			// get active connection for manager: GET /api/db/:manager/connection
+			mgr.GET("/connection", ch.GetActive)
+		}
+	}
 }

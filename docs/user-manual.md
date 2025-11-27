@@ -37,28 +37,26 @@ curl -X POST http://localhost:8080/api/auth/login \
 
 ### Crear Nueva Conexión
 ```bash
-curl -X POST http://localhost:8080/api/connections \
+curl -X POST http://localhost:8080/api/db/mssql/open \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "driver": "sqlserver",
     "server": "localhost",
     "port": "1433",
-    "user": "sa",
-    "password": "YourStrong!Passw0rd",
-    "database": "master"
+    "db_user": "sa",
+    "password": "YourStrong!Passw0rd"
   }'
 ```
 
 ### Listar Conexiones Activas
 ```bash
-curl -X GET http://localhost:8080/api/connections \
+curl -X GET http://localhost:8080/api/db/connections \
   -H "Authorization: Bearer <token>"
 ```
 
 ### Desconectar
 ```bash
-curl -X DELETE http://localhost:8080/api/connections/<id> \
+curl -X DELETE http://localhost:8080/api/db/mssql/close \
   -H "Authorization: Bearer <token>"
 ```
 

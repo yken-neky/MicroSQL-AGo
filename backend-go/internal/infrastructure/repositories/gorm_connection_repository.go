@@ -31,6 +31,17 @@ func (r *GormConnectionRepository) GetActiveByUserID(userID uint) (*entities.Act
 	return &ac, nil
 }
 
+func (r *GormConnectionRepository) GetActiveByUserIDAndDriver(userID uint, driver string) (*entities.ActiveConnection, error) {
+	var ac entities.ActiveConnection
+	if err := r.db.Where("user_id = ? AND driver = ? AND is_connected = ?", userID, driver, true).First(&ac).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &ac, nil
+}
+
 func (r *GormConnectionRepository) UpdateActive(conn *entities.ActiveConnection) error {
 	return r.db.Save(conn).Error
 }
@@ -42,6 +53,14 @@ func (r *GormConnectionRepository) DeleteActive(userID uint) error {
 func (r *GormConnectionRepository) ListActive() ([]*entities.ActiveConnection, error) {
 	var list []*entities.ActiveConnection
 	if err := r.db.Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func (r *GormConnectionRepository) ListActiveByUser(userID uint) ([]*entities.ActiveConnection, error) {
+	var list []*entities.ActiveConnection
+	if err := r.db.Where("user_id = ? AND is_connected = ?", userID, true).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil

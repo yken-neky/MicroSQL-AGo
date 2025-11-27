@@ -32,9 +32,9 @@ func NewConnectToServerUseCase(
 
 // Execute intenta establecer una conexión a SQL Server
 func (uc *ConnectToServerUseCase) Execute(ctx context.Context, userID uint, req ConnectRequest) (*entities.ActiveConnection, error) {
-	// Verificar si ya existe una conexión activa
-	if active, _ := uc.connRepo.GetActiveByUserID(userID); active != nil {
-		return nil, errors.New("user already has an active connection")
+	// Verificar si ya existe una conexión activa para este gestor (driver)
+	if active, _ := uc.connRepo.GetActiveByUserIDAndDriver(userID, req.Driver); active != nil {
+		return nil, errors.New("user already has an active connection for this driver")
 	}
 
 	// Encriptar contraseña antes de almacenar
@@ -52,7 +52,8 @@ func (uc *ConnectToServerUseCase) Execute(ctx context.Context, userID uint, req 
 		Password: req.Password,
 		Database: "master", // Siempre conectamos a master primero
 		Options: map[string]string{
-			"encrypt":                "true",
+			"encrypt": "true",
+			// use `yes` explicitly (driver accepts yes/no) so connection will trust server certificate
 			"TrustServerCertificate": "true",
 		},
 	}

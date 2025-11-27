@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -121,6 +122,14 @@ func buildDSN(cfg services.SQLServerConfig) string {
 
 	// Add additional options
 	for k, v := range cfg.Options {
+		// Some callers may provide yes/no; the driver expects boolean strings parseable by strconv.ParseBool
+		// Normalize common synonyms: yes -> true, no -> false
+		lower := strings.ToLower(v)
+		if lower == "yes" {
+			v = "yes"
+		} else if lower == "no" {
+			v = "no"
+		}
 		dsn += fmt.Sprintf("&%s=%s", k, v)
 	}
 
