@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -47,21 +48,23 @@ func (e *SQLServerQueryExecutor) ValidateQuery(query string) error {
 	}
 
 	// Verificar palabras clave peligrosas
+	// Use word boundaries to reduce false positives (e.g. don't match 'backupset')
 	dangerousKeywords := []string{
-		"(?i)SHUTDOWN",
-		"(?i)BACKUP",
-		"(?i)RESTORE",
-		"(?i)KILL",
-		"(?i)DROP\\s+DATABASE",
-		"(?i)ALTER\\s+DATABASE",
-		"(?i)CREATE\\s+DATABASE",
-		"(?i)xp_cmdshell",
-		"(?i)sp_configure",
+		`(?i)\bSHUTDOWN\b`,
+		`(?i)\bBACKUP\b`,
+		`(?i)\bRESTORE\b`,
+		`(?i)\bKILL\b`,
+		`(?i)\bDROP\s+DATABASE\b`,
+		`(?i)\bALTER\s+DATABASE\b`,
+		`(?i)\bCREATE\s+DATABASE\b`,
+		`(?i)\bxp_cmdshell\b`,
+		`(?i)\bsp_configure\b`,
 	}
 
 	for _, keyword := range dangerousKeywords {
 		if matched, _ := regexp.MatchString(keyword, query); matched {
-			return errors.New("query contains forbidden keywords")
+			// Return a clearer error including the matched keyword for diagnostics
+			return fmt.Errorf("query contains forbidden keyword: %s", keyword)
 		}
 	}
 

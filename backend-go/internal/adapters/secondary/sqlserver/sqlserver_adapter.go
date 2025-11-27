@@ -85,13 +85,46 @@ func (a *SQLServerAdapter) ExecuteQuery(ctx context.Context, db *sql.DB, query s
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	var result bool
-	err := db.QueryRowContext(ctx, query).Scan(&result)
-	if err != nil {
+	// retrieve single-valued result into empty interface and convert to bool
+	var raw interface{}
+	if err := db.QueryRowContext(ctx, query).Scan(&raw); err != nil {
 		return false, fmt.Errorf("query execution failed: %w", err)
 	}
 
-	return result, nil
+	return convertResultToBool(raw)
+}
+
+// convertResultToBool performs safe conversion from DB returned value to boolean
+func convertResultToBool(raw interface{}) (bool, error) {
+	switch v := raw.(type) {
+	case bool:
+		return v, nil
+	case int64:
+		return v != 0, nil
+	case int:
+		return v != 0, nil
+	case float64:
+		return v != 0, nil
+	case []byte:
+		s := string(v)
+		return parseBoolString(s)
+	case string:
+		return parseBoolString(v)
+	default:
+		return false, fmt.Errorf("unsupported query result type: %T", raw)
+	}
+}
+
+func parseBoolString(s string) (bool, error) {
+	t := strings.TrimSpace(strings.ToUpper(s))
+	switch t {
+	case "TRUE", "1", "YES", "Y":
+		return true, nil
+	case "FALSE", "0", "NO", "N":
+		return false, nil
+	default:
+		return false, fmt.Errorf("cannot parse boolean from string result: %q", s)
+	}
 }
 
 func (a *SQLServerAdapter) ValidateConnection(ctx context.Context, db *sql.DB) error {
