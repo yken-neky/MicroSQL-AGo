@@ -12,6 +12,7 @@ import (
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/secondary/persistence/sqlite/migrations"
 	cfg "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/config"
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/infrastructure/persistence"
+	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/infrastructure/repositories"
 	pkglog "github.com/yken-neky/MicroSQL-AGo/backend-go/pkg/utils"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
@@ -29,6 +30,11 @@ func main() {
 
 	if err := migrations.Migrate(db); err != nil {
 		logger.Fatal("failed to run migrations", zap.Error(err))
+	}
+
+	// Seed initial roles & permissions (idempotent)
+	if err := repositories.SeedDefaultRolesAndPermissions(db); err != nil {
+		logger.Fatal("failed seeding roles/permissions", zap.Error(err))
 	}
 
 	// Attach a zap-backed GORM logger for structured SQL logging

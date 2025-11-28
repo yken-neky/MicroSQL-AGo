@@ -9,7 +9,7 @@ import (
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/config"
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/domain/entities"
 	repoport "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/domain/ports/repositories"
-	// repository structs not required for migrations after removing queries related models
+	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/infrastructure/repositories"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -139,6 +139,11 @@ func main() {
 		// queries and related result/stats were removed from the Go model (user-facing SQL execution removed)
 	); err != nil {
 		log.Fatalf("failed to auto-migrate destination DB: %v", err)
+	}
+
+	// Seed default roles and permissions in destination DB as part of migration
+	if err := repositories.SeedDefaultRolesAndPermissions(dstDB); err != nil {
+		log.Fatalf("failed to seed roles/permissions on destination DB: %v", err)
 	}
 
 	// Migration counters

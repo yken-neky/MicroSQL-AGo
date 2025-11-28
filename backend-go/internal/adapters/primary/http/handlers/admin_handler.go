@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -16,10 +17,11 @@ type AdminHandler struct {
 	DB          *gorm.DB
 	Logger      *zap.Logger
 	SessionRepo repositories.SessionRepository
+	RoleRepo    repositories.RoleRepository
+	PermRepo    repositories.PermissionRepository
 }
-
-func NewAdminHandler(db *gorm.DB, logger *zap.Logger, sr repositories.SessionRepository) *AdminHandler {
-	return &AdminHandler{DB: db, Logger: logger, SessionRepo: sr}
+func NewAdminHandler(db *gorm.DB, logger *zap.Logger, sr repositories.SessionRepository, rr repositories.RoleRepository, pr repositories.PermissionRepository) *AdminHandler {
+	return &AdminHandler{DB: db, Logger: logger, SessionRepo: sr, RoleRepo: rr, PermRepo: pr}
 }
 
 // ListActiveSessions returns all active sessions with user info (admin only)
@@ -216,4 +218,303 @@ func (h *AdminHandler) GetSystemMetrics(c *gin.Context) {
 		resp[t] = cnt
 	}
 	c.JSON(http.StatusOK, gin.H{"table_counts": resp})
+}
+
+// --- Roles / Permissions CRUD and assignments ---
+
+// ListRoles returns available roles with permissions
+func (h *AdminHandler) ListRoles(c *gin.Context) {
+	if h.RoleRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "role repository not configured"})
+		return
+	}
+	list, err := h.RoleRepo.List()
+	if err != nil {
+		h.Logger.Error("list roles failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list roles"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"roles": list})
+}
+
+// CreateRole creates a new role
+func (h *AdminHandler) CreateRole(c *gin.Context) {
+	if h.RoleRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "role repository not configured"})
+		return
+	}
+	var body entities.Role
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if body.Name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name required"})
+		return
+	}
+	if err := h.RoleRepo.Create(&body); err != nil {
+		h.Logger.Error("create role failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create role"})
+		return
+	}
+	c.JSON(http.StatusCreated, body)
+}
+
+// UpdateRole updates role metadata
+func (h *AdminHandler) UpdateRole(c *gin.Context) {
+	if h.RoleRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "role repository not configured"})
+		return
+	}
+	idParam := c.Param("id")
+	var id uint
+	if _, err := fmt.Sscanf(idParam, "%d", &id); err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role id"})
+		return
+	}
+	existing, err := h.RoleRepo.GetByID(id)
+	if err != nil {
+		h.Logger.Error("get role failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load role"})
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "role not found"})
+		return
+	}
+	var body entities.Role
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if body.Name != "" {
+		existing.Name = body.Name
+	}
+	existing.Description = body.Description
+	if err := h.RoleRepo.Update(existing); err != nil {
+		h.Logger.Error("update role failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update role"})
+		return
+	}
+	c.JSON(http.StatusOK, existing)
+}
+
+// DeleteRole removes a role
+func (h *AdminHandler) DeleteRole(c *gin.Context) {
+	if h.RoleRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "role repository not configured"})
+		return
+	}
+	idParam := c.Param("id")
+	var id uint
+	if _, err := fmt.Sscanf(idParam, "%d", &id); err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role id"})
+		return
+	}
+	if err := h.RoleRepo.Delete(id); err != nil {
+		h.Logger.Error("delete role failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete role"})
+		return
+	}
+	c.JSON(http.StatusNoContent, gin.H{})
+}
+
+// AssignRoleToUser assigns a role to a user
+func (h *AdminHandler) AssignRoleToUser(c *gin.Context) {
+	if h.RoleRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "role repository not configured"})
+		return
+	}
+	userIDParam := c.Param("id")
+	var userID uint
+	if _, err := fmt.Sscanf(userIDParam, "%d", &userID); err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+	var body struct{ RoleID uint `json:"role_id"` }
+	if err := c.ShouldBindJSON(&body); err != nil || body.RoleID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "role_id required"})
+		return
+	}
+	if err := h.RoleRepo.AssignToUser(userID, body.RoleID); err != nil {
+		h.Logger.Error("assign role failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign role"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// RevokeRoleFromUser removes a role from a user
+func (h *AdminHandler) RevokeRoleFromUser(c *gin.Context) {
+	if h.RoleRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "role repository not configured"})
+		return
+	}
+	userIDParam := c.Param("id")
+	var userID uint
+	if _, err := fmt.Sscanf(userIDParam, "%d", &userID); err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
+		return
+	}
+	var body struct{ RoleID uint `json:"role_id"` }
+	if err := c.ShouldBindJSON(&body); err != nil || body.RoleID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "role_id required"})
+		return
+	}
+	if err := h.RoleRepo.RevokeFromUser(userID, body.RoleID); err != nil {
+		h.Logger.Error("revoke role failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke role"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// ---- Permissions ----
+
+func (h *AdminHandler) ListPermissions(c *gin.Context) {
+	if h.PermRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "permission repository not configured"})
+		return
+	}
+	list, err := h.PermRepo.List()
+	if err != nil {
+		h.Logger.Error("list perms failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list permissions"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"permissions": list})
+}
+
+func (h *AdminHandler) CreatePermission(c *gin.Context) {
+	if h.PermRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "permission repository not configured"})
+		return
+	}
+	var body entities.Permission
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if body.Name == "" || body.Resource == "" || body.Action == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name, resource and action are required"})
+		return
+	}
+	if err := h.PermRepo.Create(&body); err != nil {
+		h.Logger.Error("create perm failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create permission"})
+		return
+	}
+	c.JSON(http.StatusCreated, body)
+}
+
+func (h *AdminHandler) UpdatePermission(c *gin.Context) {
+	if h.PermRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "permission repository not configured"})
+		return
+	}
+	idParam := c.Param("id")
+	var id uint
+	if _, err := fmt.Sscanf(idParam, "%d", &id); err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid permission id"})
+		return
+	}
+	existing, err := h.PermRepo.GetByID(id)
+	if err != nil {
+		h.Logger.Error("get perm failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load permission"})
+		return
+	}
+	if existing == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "permission not found"})
+		return
+	}
+	var body entities.Permission
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if body.Name != "" {
+		existing.Name = body.Name
+	}
+	if body.Resource != "" {
+		existing.Resource = body.Resource
+	}
+	if body.Action != "" {
+		existing.Action = body.Action
+	}
+	existing.Description = body.Description
+	if err := h.PermRepo.Update(existing); err != nil {
+		h.Logger.Error("update perm failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update permission"})
+		return
+	}
+	c.JSON(http.StatusOK, existing)
+}
+
+func (h *AdminHandler) DeletePermission(c *gin.Context) {
+	if h.PermRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "permission repository not configured"})
+		return
+	}
+	idParam := c.Param("id")
+	var id uint
+	if _, err := fmt.Sscanf(idParam, "%d", &id); err != nil || id == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid permission id"})
+		return
+	}
+	if err := h.PermRepo.Delete(id); err != nil {
+		h.Logger.Error("delete perm failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete permission"})
+		return
+	}
+	c.JSON(http.StatusNoContent, gin.H{})
+}
+
+// AssignPermissionToRole attaches a permission to a role
+func (h *AdminHandler) AssignPermissionToRole(c *gin.Context) {
+	if h.PermRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "permission repository not configured"})
+		return
+	}
+	roleIDParam := c.Param("id")
+	var roleID uint
+	if _, err := fmt.Sscanf(roleIDParam, "%d", &roleID); err != nil || roleID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role id"})
+		return
+	}
+	var body struct{ PermissionID uint `json:"permission_id"` }
+	if err := c.ShouldBindJSON(&body); err != nil || body.PermissionID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "permission_id required"})
+		return
+	}
+	if err := h.PermRepo.AssignToRole(roleID, body.PermissionID); err != nil {
+		h.Logger.Error("assign perm to role failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign permission to role"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (h *AdminHandler) RevokePermissionFromRole(c *gin.Context) {
+	if h.PermRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "permission repository not configured"})
+		return
+	}
+	roleIDParam := c.Param("id")
+	var roleID uint
+	if _, err := fmt.Sscanf(roleIDParam, "%d", &roleID); err != nil || roleID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role id"})
+		return
+	}
+	var body struct{ PermissionID uint `json:"permission_id"` }
+	if err := c.ShouldBindJSON(&body); err != nil || body.PermissionID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "permission_id required"})
+		return
+	}
+	if err := h.PermRepo.RevokeFromRole(roleID, body.PermissionID); err != nil {
+		h.Logger.Error("revoke perm from role failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke permission from role"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

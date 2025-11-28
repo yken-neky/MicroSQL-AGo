@@ -71,8 +71,24 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
 		// only admin role may access admin routes
 		admin.Use(adminMW.RequireRole("admin"))
 		sessionRepo := repo.NewGormSessionRepository(db)
-		adminHandler := handlers.NewAdminHandler(db, logger, sessionRepo)
+		roleRepo := repo.NewGormRoleRepository(db)
+		permRepo := repo.NewGormPermissionRepository(db)
+		adminHandler := handlers.NewAdminHandler(db, logger, sessionRepo, roleRepo, permRepo)
 		admin.GET("/sessions", adminHandler.ListActiveSessions)
+		// role management
+		admin.GET("/roles", adminHandler.ListRoles)
+		admin.POST("/roles", adminHandler.CreateRole)
+		admin.PUT("/roles/:id", adminHandler.UpdateRole)
+		admin.DELETE("/roles/:id", adminHandler.DeleteRole)
+		admin.POST("/users/:id/roles", adminHandler.AssignRoleToUser)
+		admin.DELETE("/users/:id/roles", adminHandler.RevokeRoleFromUser)
+		// permissions management
+		admin.GET("/permissions", adminHandler.ListPermissions)
+		admin.POST("/permissions", adminHandler.CreatePermission)
+		admin.PUT("/permissions/:id", adminHandler.UpdatePermission)
+		admin.DELETE("/permissions/:id", adminHandler.DeletePermission)
+		admin.POST("/roles/:id/permissions", adminHandler.AssignPermissionToRole)
+		admin.DELETE("/roles/:id/permissions", adminHandler.RevokePermissionFromRole)
 		// metrics endpoints for admin
 		admin.GET("/metrics/users", adminHandler.GetUsersMetrics)
 		admin.GET("/metrics/connections", adminHandler.GetConnectionsMetrics)
