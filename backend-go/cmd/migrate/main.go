@@ -136,6 +136,7 @@ func main() {
 		&entities.Permission{},
 		&entities.UserRole{},
 		&entities.ConnectionLog{},
+		&entities.AdminActionLog{},
 		// queries and related result/stats were removed from the Go model (user-facing SQL execution removed)
 	); err != nil {
 		log.Fatalf("failed to auto-migrate destination DB: %v", err)

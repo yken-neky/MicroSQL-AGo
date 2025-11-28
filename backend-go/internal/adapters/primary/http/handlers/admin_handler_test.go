@@ -39,9 +39,12 @@ func TestAdminHandler_GetUsersMetrics(t *testing.T) {
 
 	roleRepo := repo.NewGormRoleRepository(db)
 	permRepo := repo.NewGormPermissionRepository(db)
-	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo)
+	auditRepo := repo.NewGormAdminAuditRepository(db)
+	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo, auditRepo)
 
 	r := gin.New()
+	// test routes simulate authenticated admin user in context
+	r.Use(func(c *gin.Context) { c.Set("userID", uint(99)); c.Set("username", "test-admin"); c.Next() })
 	r.GET("/metrics/users", h.GetUsersMetrics)
 
 	w := httptest.NewRecorder()
@@ -65,8 +68,10 @@ func TestAdminHandler_GetConnectionsMetrics(t *testing.T) {
 
 	roleRepo := repo.NewGormRoleRepository(db)
 	permRepo := repo.NewGormPermissionRepository(db)
-	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo)
+	auditRepo := repo.NewGormAdminAuditRepository(db)
+	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo, auditRepo)
 	r := gin.New()
+	r.Use(func(c *gin.Context) { c.Set("userID", uint(99)); c.Set("username", "test-admin"); c.Next() })
 	r.GET("/metrics/connections", h.GetConnectionsMetrics)
 
 	w := httptest.NewRecorder()
@@ -91,8 +96,10 @@ func TestAdminHandler_GetAuditsMetrics(t *testing.T) {
 
 	roleRepo := repo.NewGormRoleRepository(db)
 	permRepo := repo.NewGormPermissionRepository(db)
-	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo)
+	auditRepo := repo.NewGormAdminAuditRepository(db)
+	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo, auditRepo)
 	r := gin.New()
+	r.Use(func(c *gin.Context) { c.Set("userID", uint(99)); c.Set("username", "test-admin"); c.Next() })
 	r.GET("/metrics/audits", h.GetAuditsMetrics)
 
 	w := httptest.NewRecorder()
@@ -119,8 +126,10 @@ func TestAdminHandler_GetRolesMetricsAndSystemMetrics(t *testing.T) {
 
 	roleRepo := repo.NewGormRoleRepository(db)
 	permRepo := repo.NewGormPermissionRepository(db)
-	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo)
+	auditRepo := repo.NewGormAdminAuditRepository(db)
+	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo, auditRepo)
 	r := gin.New()
+	r.Use(func(c *gin.Context) { c.Set("userID", uint(99)); c.Set("username", "test-admin"); c.Next() })
 	r.GET("/metrics/roles", h.GetRolesMetrics)
 	r.GET("/metrics/system", h.GetSystemMetrics)
 
@@ -141,15 +150,17 @@ func TestAdminHandler_GetRolesMetricsAndSystemMetrics(t *testing.T) {
 
 func TestAdminHandler_RolesAndPermissionsCRUD(t *testing.T) {
 	db := setupDB(t)
-	if err := db.AutoMigrate(&entities.User{}, &entities.Role{}, &entities.Permission{}, &entities.UserRole{}); err != nil {
+	if err := db.AutoMigrate(&entities.User{}, &entities.Role{}, &entities.Permission{}, &entities.UserRole{}, &entities.AdminActionLog{}); err != nil {
 		t.Fatalf("migrate roles/permissions: %v", err)
 	}
 
 	roleRepo := repo.NewGormRoleRepository(db)
 	permRepo := repo.NewGormPermissionRepository(db)
-	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo)
+	auditRepo := repo.NewGormAdminAuditRepository(db)
+	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo, auditRepo)
 
 	r := gin.New()
+	r.Use(func(c *gin.Context) { c.Set("userID", uint(99)); c.Set("username", "test-admin"); c.Next() })
 	r.POST("/roles", h.CreateRole)
 	r.GET("/roles", h.ListRoles)
 	r.PUT("/roles/:id", h.UpdateRole)
@@ -240,4 +251,143 @@ func TestAdminHandler_RolesAndPermissionsCRUD(t *testing.T) {
 	if aw.Code != http.StatusOK {
 		t.Fatalf("assign perm failed: %d body=%s", aw.Code, aw.Body.String())
 	}
+
+	// verify RBAC audit logs were recorded
+	logs, err := auditRepo.List(nil, nil, nil, 100, 0)
+	if err != nil {
+		t.Fatalf("failed reading audit logs: %v", err)
+	}
+	if len(logs) == 0 {
+		t.Fatalf("expected audit logs to contain entries for RBAC actions, got 0")
+	}
+}
+
+func TestAdminHandler_ListRBACAuditLogs(t *testing.T) {
+	db := setupDB(t)
+	if err := db.AutoMigrate(&entities.AdminActionLog{}); err != nil {
+		t.Fatalf("migrate audit logs: %v", err)
+	}
+
+	auditRepo := repo.NewGormAdminAuditRepository(db)
+	// seed some audit entries
+	auditRepo.Create(&entities.AdminActionLog{ActorID: 1, ActorName: "admin1", Action: "role.create", TargetType: "role", TargetName: "admin", Details: "created"})
+	auditRepo.Create(&entities.AdminActionLog{ActorID: 2, ActorName: "auditor", Action: "permission.create", TargetType: "permission", TargetName: "audits:read", Details: "added perm"})
+
+	roleRepo := repo.NewGormRoleRepository(db)
+	permRepo := repo.NewGormPermissionRepository(db)
+	h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo, auditRepo)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) { c.Set("userID", uint(99)); c.Set("username", "test-admin"); c.Next() })
+	r.GET("/admin/audit/rbac", h.ListRBACAuditLogs)
+
+	// list all
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/admin/audit/rbac", nil)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 got %d body=%s", w.Code, w.Body.String())
+	}
+
+	var out struct {
+		Logs []entities.AdminActionLog `json:"logs"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("failed to parse response: %v body=%s", err, w.Body.String())
+	}
+	if len(out.Logs) != 2 {
+		t.Fatalf("expected 2 logs, got %d", len(out.Logs))
+	}
+
+	// filter by actor id
+	w2 := httptest.NewRecorder()
+	req2 := httptest.NewRequest(http.MethodGet, "/admin/audit/rbac?actor_id=1", nil)
+	r.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("expected 200 got %d body=%s", w2.Code, w2.Body.String())
+	}
+	var out2 struct {
+		Logs []entities.AdminActionLog `json:"logs"`
+	}
+	if err := json.Unmarshal(w2.Body.Bytes(), &out2); err != nil {
+		t.Fatalf("failed to parse response: %v body=%s", err, w2.Body.String())
+	}
+	if len(out2.Logs) != 1 || out2.Logs[0].ActorID != 1 {
+		t.Fatalf("expected single log for actor_id=1, got %+v", out2.Logs)
+	}
+}
+
+// ...existing code...
+func TestAdminHandler_ListUsersWithRoles(t *testing.T) {
+    db := setupDB(t)
+    if err := db.AutoMigrate(&entities.User{}, &entities.Role{}, &entities.UserRole{}); err != nil {
+        t.Fatalf("migrate users/roles: %v", err)
+    }
+
+    // create roles
+    roleAdmin := entities.Role{Name: "admin"}
+    roleManager := entities.Role{Name: "manager"}
+    db.Create(&roleAdmin)
+    db.Create(&roleManager)
+
+    // create users
+    u1 := entities.User{Username: "alice", Email: "alice@e", Password: "x", IsActive: true}
+    u2 := entities.User{Username: "bob", Email: "bob@e", Password: "x", IsActive: true}
+    db.Create(&u1)
+    db.Create(&u2)
+
+    // assign roles via user_roles table
+    db.Create(&entities.UserRole{UserID: u1.ID, RoleID: roleAdmin.ID})
+    db.Create(&entities.UserRole{UserID: u2.ID, RoleID: roleManager.ID})
+    db.Create(&entities.UserRole{UserID: u2.ID, RoleID: roleAdmin.ID}) // bob has two roles
+
+    roleRepo := repo.NewGormRoleRepository(db)
+    permRepo := repo.NewGormPermissionRepository(db)
+    auditRepo := repo.NewGormAdminAuditRepository(db)
+    h := NewAdminHandler(db, zap.NewNop(), nil, roleRepo, permRepo, auditRepo)
+
+    r := gin.New()
+    r.Use(func(c *gin.Context) { c.Set("userID", uint(99)); c.Set("username", "test-admin"); c.Next() })
+    r.GET("/admin/users", h.ListUsersWithRoles)
+
+    w := httptest.NewRecorder()
+    req := httptest.NewRequest(http.MethodGet, "/admin/users", nil)
+    r.ServeHTTP(w, req)
+
+    if w.Code != http.StatusOK {
+        t.Fatalf("expected 200 got %d body=%s", w.Code, w.Body.String())
+    }
+
+    var out struct {
+        Users []struct {
+            ID       uint     `json:"id"`
+            Username string   `json:"username"`
+            Email    string   `json:"email"`
+            IsActive bool     `json:"is_active"`
+            Roles    []string `json:"roles"`
+        } `json:"users"`
+    }
+    if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+        t.Fatalf("failed to parse response: %v body=%s", err, w.Body.String())
+    }
+
+    if len(out.Users) != 2 {
+        t.Fatalf("expected 2 users, got %d", len(out.Users))
+    }
+
+    // verify roles returned for users
+    for _, u := range out.Users {
+        switch u.Username {
+        case "alice":
+            if len(u.Roles) != 1 || u.Roles[0] != "admin" {
+                t.Fatalf("alice roles mismatch: %+v", u.Roles)
+            }
+        case "bob":
+            if len(u.Roles) != 2 {
+                t.Fatalf("bob should have 2 roles, got: %+v", u.Roles)
+            }
+        default:
+            t.Fatalf("unexpected user %s", u.Username)
+        }
+    }
 }

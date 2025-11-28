@@ -73,15 +73,19 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
 		sessionRepo := repo.NewGormSessionRepository(db)
 		roleRepo := repo.NewGormRoleRepository(db)
 		permRepo := repo.NewGormPermissionRepository(db)
-		adminHandler := handlers.NewAdminHandler(db, logger, sessionRepo, roleRepo, permRepo)
+		auditRepo := repo.NewGormAdminAuditRepository(db)
+		adminHandler := handlers.NewAdminHandler(db, logger, sessionRepo, roleRepo, permRepo, auditRepo)
 		admin.GET("/sessions", adminHandler.ListActiveSessions)
 		// role management
 		admin.GET("/roles", adminHandler.ListRoles)
 		admin.POST("/roles", adminHandler.CreateRole)
 		admin.PUT("/roles/:id", adminHandler.UpdateRole)
 		admin.DELETE("/roles/:id", adminHandler.DeleteRole)
+		admin.GET("/users", adminHandler.ListUsersWithRoles)
 		admin.POST("/users/:id/roles", adminHandler.AssignRoleToUser)
 		admin.DELETE("/users/:id/roles", adminHandler.RevokeRoleFromUser)
+		// RBAC audit logs
+		admin.GET("/audit/rbac", adminHandler.ListRBACAuditLogs)
 		// permissions management
 		admin.GET("/permissions", adminHandler.ListPermissions)
 		admin.POST("/permissions", adminHandler.CreatePermission)

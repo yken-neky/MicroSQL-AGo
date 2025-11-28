@@ -19,6 +19,7 @@ func Migrate(db *gorm.DB) error {
 		// Query-related models were removed (no user-facing SQL execution/persistence)
 		&entities.AuditRun{},
 		&entities.AuditScriptResult{},
+		&entities.AdminActionLog{},
 		&entities.Session{},
 	)
 }

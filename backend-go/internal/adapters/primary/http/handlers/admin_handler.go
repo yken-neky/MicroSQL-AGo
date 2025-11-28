@@ -19,10 +19,42 @@ type AdminHandler struct {
 	SessionRepo repositories.SessionRepository
 	RoleRepo    repositories.RoleRepository
 	PermRepo    repositories.PermissionRepository
+	AuditRepo   repositories.AdminAuditRepository
 }
 
-func NewAdminHandler(db *gorm.DB, logger *zap.Logger, sr repositories.SessionRepository, rr repositories.RoleRepository, pr repositories.PermissionRepository) *AdminHandler {
-	return &AdminHandler{DB: db, Logger: logger, SessionRepo: sr, RoleRepo: rr, PermRepo: pr}
+func NewAdminHandler(db *gorm.DB, logger *zap.Logger, sr repositories.SessionRepository, rr repositories.RoleRepository, pr repositories.PermissionRepository, ar repositories.AdminAuditRepository) *AdminHandler {
+	return &AdminHandler{DB: db, Logger: logger, SessionRepo: sr, RoleRepo: rr, PermRepo: pr, AuditRepo: ar}
+}
+
+// recordRBACLog writes an AdminActionLog if AuditRepo is configured. Will not fail the handler on error.
+func (h *AdminHandler) recordRBACLog(c *gin.Context, action, targetType string, targetID *uint, targetName string, details string) {
+	if h.AuditRepo == nil {
+		return
+	}
+	var actorID uint
+	var actorName string
+	if u, ok := c.Get("userID"); ok {
+		if v, ok2 := u.(uint); ok2 {
+			actorID = v
+		}
+	}
+	if n, ok := c.Get("username"); ok {
+		if s, ok2 := n.(string); ok2 {
+			actorName = s
+		}
+	}
+	log := &entities.AdminActionLog{
+		ActorID:    actorID,
+		ActorName:  actorName,
+		Action:     action,
+		TargetType: targetType,
+		TargetID:   targetID,
+		TargetName: targetName,
+		Details:    details,
+	}
+	if err := h.AuditRepo.Create(log); err != nil {
+		h.Logger.Warn("failed creating rbac audit log", zap.Error(err))
+	}
 }
 
 // ListActiveSessions returns all active sessions with user info (admin only)
@@ -258,6 +290,8 @@ func (h *AdminHandler) CreateRole(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create role"})
 		return
 	}
+	// record audit
+	h.recordRBACLog(c, "role.create", "role", &body.ID, body.Name, body.Description)
 	c.JSON(http.StatusCreated, body)
 }
 
@@ -297,6 +331,7 @@ func (h *AdminHandler) UpdateRole(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update role"})
 		return
 	}
+	h.recordRBACLog(c, "role.update", "role", &existing.ID, existing.Name, existing.Description)
 	c.JSON(http.StatusOK, existing)
 }
 
@@ -312,11 +347,18 @@ func (h *AdminHandler) DeleteRole(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role id"})
 		return
 	}
+	// fetch role name first for audit
+	var name string
+	if r, _ := h.RoleRepo.GetByID(id); r != nil {
+		name = r.Name
+	}
 	if err := h.RoleRepo.Delete(id); err != nil {
 		h.Logger.Error("delete role failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete role"})
 		return
 	}
+	// record audit
+	h.recordRBACLog(c, "role.delete", "role", &id, name, "")
 	c.JSON(http.StatusNoContent, gin.H{})
 }
 
@@ -344,6 +386,10 @@ func (h *AdminHandler) AssignRoleToUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign role"})
 		return
 	}
+	// audit
+	details := fmt.Sprintf("role_id=%d assigned to user_id=%d", body.RoleID, userID)
+	targetName := fmt.Sprintf("user:%d", userID)
+	h.recordRBACLog(c, "role.assign", "user_role", nil, targetName, details)
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
@@ -371,6 +417,9 @@ func (h *AdminHandler) RevokeRoleFromUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke role"})
 		return
 	}
+	details := fmt.Sprintf("role_id=%d revoked from user_id=%d", body.RoleID, userID)
+	targetName := fmt.Sprintf("user:%d", userID)
+	h.recordRBACLog(c, "role.revoke", "user_role", nil, targetName, details)
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
@@ -409,6 +458,7 @@ func (h *AdminHandler) CreatePermission(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create permission"})
 		return
 	}
+	h.recordRBACLog(c, "permission.create", "permission", &body.ID, body.Name, body.Description)
 	c.JSON(http.StatusCreated, body)
 }
 
@@ -453,6 +503,7 @@ func (h *AdminHandler) UpdatePermission(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update permission"})
 		return
 	}
+	h.recordRBACLog(c, "permission.update", "permission", &existing.ID, existing.Name, existing.Description)
 	c.JSON(http.StatusOK, existing)
 }
 
@@ -467,11 +518,17 @@ func (h *AdminHandler) DeletePermission(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid permission id"})
 		return
 	}
+	// fetch name for audit
+	var pname string
+	if p, _ := h.PermRepo.GetByID(id); p != nil {
+		pname = p.Name
+	}
 	if err := h.PermRepo.Delete(id); err != nil {
 		h.Logger.Error("delete perm failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete permission"})
 		return
 	}
+	h.recordRBACLog(c, "permission.delete", "permission", &id, pname, "")
 	c.JSON(http.StatusNoContent, gin.H{})
 }
 
@@ -499,6 +556,9 @@ func (h *AdminHandler) AssignPermissionToRole(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to assign permission to role"})
 		return
 	}
+	details := fmt.Sprintf("permission_id=%d assigned to role_id=%d", body.PermissionID, roleID)
+	targetName := fmt.Sprintf("role:%d", roleID)
+	h.recordRBACLog(c, "permission.assign", "role_permission", nil, targetName, details)
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
@@ -525,5 +585,91 @@ func (h *AdminHandler) RevokePermissionFromRole(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke permission from role"})
 		return
 	}
+	details := fmt.Sprintf("permission_id=%d revoked from role_id=%d", body.PermissionID, roleID)
+	targetName := fmt.Sprintf("role:%d", roleID)
+	h.recordRBACLog(c, "permission.revoke", "role_permission", nil, targetName, details)
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// ListRBACAuditLogs lists RBAC/audit logs with optional filters
+func (h *AdminHandler) ListRBACAuditLogs(c *gin.Context) {
+	if h.AuditRepo == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "admin audit repository not configured"})
+		return
+	}
+
+	var actorID *uint
+	if v := c.Query("actor_id"); v != "" {
+		var id uint
+		if _, err := fmt.Sscanf(v, "%d", &id); err == nil {
+			actorID = &id
+		}
+	}
+	var targetType *string
+	if v := c.Query("target_type"); v != "" {
+		targetType = &v
+	}
+	var action *string
+	if v := c.Query("action"); v != "" {
+		action = &v
+	}
+
+	limit := 100
+	offset := 0
+	if v := c.Query("limit"); v != "" {
+		var l int
+		if _, err := fmt.Sscanf(v, "%d", &l); err == nil && l > 0 {
+			limit = l
+		}
+	}
+	if v := c.Query("offset"); v != "" {
+		var o int
+		if _, err := fmt.Sscanf(v, "%d", &o); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	list, err := h.AuditRepo.List(actorID, targetType, action, limit, offset)
+	if err != nil {
+		h.Logger.Error("list rbac audit logs failed", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list audit logs"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"logs": list})
+}
+
+// ListUsersWithRoles devuelve todos los usuarios con los roles asociados.
+func (h *AdminHandler) ListUsersWithRoles(c *gin.Context) {
+    var users []entities.User
+    if err := h.DB.Find(&users).Error; err != nil {
+        h.Logger.Error("failed fetching users", zap.Error(err))
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+        return
+    }
+
+    type userOut struct {
+        ID       uint     `json:"id"`
+        Username string   `json:"username"`
+        Email    string   `json:"email"`
+        IsActive bool     `json:"is_active"`
+        Roles    []string `json:"roles"`
+    }
+
+    out := make([]userOut, 0, len(users))
+    for _, u := range users {
+        roles, _ := h.RoleRepo.GetUserRoles(u.ID) // ignore error => empty list on err
+        rnames := make([]string, 0, len(roles))
+        for _, r := range roles {
+            rnames = append(rnames, r.Name)
+        }
+        out = append(out, userOut{
+            ID:       u.ID,
+            Username: u.Username,
+            Email:    u.Email,
+            IsActive: u.IsActive,
+            Roles:    rnames,
+        })
+    }
+
+    c.JSON(http.StatusOK, gin.H{"users": out})
 }
