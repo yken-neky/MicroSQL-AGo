@@ -10,7 +10,7 @@ import (
 
 	dto "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/primary/http/dto"
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/adapters/secondary/security"
-	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/domain/entities"
+	entities "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/domain/entities"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -78,18 +78,25 @@ func (h *UserHandler) Register(c *gin.Context) {
 		FirstName: req.FirstName,
 		LastName:  req.LastName,
 		IsActive:  true,
+		Role: 	   "user",
 	}
-
-	// Ensure role has sensible default if not set by DB defaults
-	if user.Role == "" {
-		user.Role = "cliente"
-	}
-
+	
 	// Omit LastLogin on insert to avoid zero-datetime errors on strict MySQL modes.
 	if err := h.DB.Omit("last_login").Create(&user).Error; err != nil {
 		h.Logger.Error("failed to create user", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create user"})
 		return
+	}
+
+	// Crear registro en user_roles con role_id = 3
+	userRole := entities.UserRole{
+	    UserID: user.ID,
+	    RoleID: 3, // ID del rol "user"
+	}
+	if err := h.DB.Create(&userRole).Error; err != nil {
+	    h.Logger.Error("failed to create user role", zap.Error(err))
+	    // No hacemos return porque el usuario ya fue creado exitosamente
+	    // Solo loggeamos el error pero continuamos
 	}
 
 	// Generate JWT token for the new user

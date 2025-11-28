@@ -41,7 +41,7 @@ func (uc *RegisterUserUseCase) Execute(username, email, password string) (*entit
 		Username: username,
 		Email:    email,
 		Password: hashed,
-		Role:     "cliente",
+		Role:     "user",
 		IsActive: true,
 	}
 
