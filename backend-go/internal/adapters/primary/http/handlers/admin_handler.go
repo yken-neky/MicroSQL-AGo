@@ -20,6 +20,7 @@ type AdminHandler struct {
 	RoleRepo    repositories.RoleRepository
 	PermRepo    repositories.PermissionRepository
 }
+
 func NewAdminHandler(db *gorm.DB, logger *zap.Logger, sr repositories.SessionRepository, rr repositories.RoleRepository, pr repositories.PermissionRepository) *AdminHandler {
 	return &AdminHandler{DB: db, Logger: logger, SessionRepo: sr, RoleRepo: rr, PermRepo: pr}
 }
@@ -331,7 +332,9 @@ func (h *AdminHandler) AssignRoleToUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
 		return
 	}
-	var body struct{ RoleID uint `json:"role_id"` }
+	var body struct {
+		RoleID uint `json:"role_id"`
+	}
 	if err := c.ShouldBindJSON(&body); err != nil || body.RoleID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "role_id required"})
 		return
@@ -356,7 +359,9 @@ func (h *AdminHandler) RevokeRoleFromUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
 		return
 	}
-	var body struct{ RoleID uint `json:"role_id"` }
+	var body struct {
+		RoleID uint `json:"role_id"`
+	}
 	if err := c.ShouldBindJSON(&body); err != nil || body.RoleID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "role_id required"})
 		return
@@ -482,7 +487,9 @@ func (h *AdminHandler) AssignPermissionToRole(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role id"})
 		return
 	}
-	var body struct{ PermissionID uint `json:"permission_id"` }
+	var body struct {
+		PermissionID uint `json:"permission_id"`
+	}
 	if err := c.ShouldBindJSON(&body); err != nil || body.PermissionID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "permission_id required"})
 		return
@@ -506,7 +513,9 @@ func (h *AdminHandler) RevokePermissionFromRole(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role id"})
 		return
 	}
-	var body struct{ PermissionID uint `json:"permission_id"` }
+	var body struct {
+		PermissionID uint `json:"permission_id"`
+	}
 	if err := c.ShouldBindJSON(&body); err != nil || body.PermissionID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "permission_id required"})
 		return
