@@ -80,15 +80,8 @@ Formato de cada ítem:
   - Est. esfuerzo: 12h
   - Criterio de aceptación: `POST /api/db/{gestor}/open` crea conexión (persistida cifrada), `GET /api/db/connections` lista, `DELETE /api/db/{gestor}/close` cierra.
 
-- Ejecución de consultas (async/streaming/pagination)
-  - Prioridad: Alta
-  - Est. esfuerzo: 20h
-  - Criterio de aceptación: `POST /api/queries/execute` ejecuta SQL con paginación, respeta límites de concurrencia y rate limits.
-
-- Historial de consultas y resultados (`/api/queries/history`, `/api/queries/{id}`)
-  - Prioridad: Alta
-  - Est. esfuerzo: 8h
-  - Criterio de aceptación: historial persistido y accesible con filtros y paginación.
+-- Ejecución de consultas (removida)
+  - Nota: la ejecución arbitraria de consultas por usuarios ya no forma parte del producto; se mantienen auditorías/controles ejecutados a partir de scripts predefinidos.
 
 - Controles / Auditorías (list, execute, result)
   - Prioridad: Media

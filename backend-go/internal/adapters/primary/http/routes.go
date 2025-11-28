@@ -73,6 +73,12 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, logger *zap.Logger) {
 		sessionRepo := repo.NewGormSessionRepository(db)
 		adminHandler := handlers.NewAdminHandler(db, logger, sessionRepo)
 		admin.GET("/sessions", adminHandler.ListActiveSessions)
+		// metrics endpoints for admin
+		admin.GET("/metrics/users", adminHandler.GetUsersMetrics)
+		admin.GET("/metrics/connections", adminHandler.GetConnectionsMetrics)
+		admin.GET("/metrics/audits", adminHandler.GetAuditsMetrics)
+		admin.GET("/metrics/roles", adminHandler.GetRolesMetrics)
+		admin.GET("/metrics/system", adminHandler.GetSystemMetrics)
 	}
 
 	// DB connection endpoints: /api/db and /api/db/:manager

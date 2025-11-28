@@ -86,48 +86,7 @@
 │ (Composite PK)                       │
 └──────────────────────────────────────┘
 
-┌──────────────────────────────────────┐
-│        QUERIES (vacía)               │
-├──────────────────────────────────────┤
-│ id (PK)                   uint       │
-│ user_id (FK)              uint       │
-│ connection_id (FK)        uint       │
-│ sql                       text       │
-│ status                    varchar    │
-│ start_time                datetime   │
-│ end_time                  datetime   │
-│ rows_affected             int64      │
-│ error                     text       │
-│ database                  varchar    │
-└──────────────────────────────────────┘
-         │
-         │ 1 : 1
-         │
-         ▼
-
-┌──────────────────────────────────────┐
-│    QUERY_RESULT_DBS (vacía)          │
-├──────────────────────────────────────┤
-│ query_id (FK)             uint       │
-│ columns (JSON)            text       │
-│ types (JSON)              text       │
-│ rows (JSON)               text       │
-│ has_more_rows             bool       │
-│ page_size                 int        │
-│ page_number               int        │
-│ created_at                datetime   │
-└──────────────────────────────────────┘
-
-┌──────────────────────────────────────┐
-│    EXECUTION_STATS (vacía)           │
-├──────────────────────────────────────┤
-│ query_id (FK)             uint       │
-│ duration_ms               float64    │
-│ rows_affected             int64      │
-│ cpu_time_ms               float64    │
-│ io_time_ms                float64    │
-│ memory_kb                 int64      │
-└──────────────────────────────────────┘
+<!-- Query history / results / stats removed from the project: user-submitted arbitrary SQL & history persistence is not supported. -->
 
 ```
 

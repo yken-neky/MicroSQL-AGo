@@ -62,39 +62,7 @@ curl -X DELETE http://localhost:8080/api/db/mssql/close \
 
 ## Ejecución de Consultas
 
-### Ejecutar Consulta Simple
-```bash
-curl -X POST http://localhost:8080/api/queries/execute \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sql": "SELECT * FROM users",
-    "database": "master",
-    "pageSize": 100
-  }'
-```
-
-### Resultados Paginados
-- Usar parámetros `pageSize` y `page`
-- Verificar `hasMoreRows` en la respuesta
-- Siguiente página: incrementar `page`
-
-### Tipos de Consultas Soportadas
-- SELECT
-- INSERT
-- UPDATE
-- DELETE
-- Stored Procedures
-
-### Limitaciones
-- Máximo 1000 filas por página
-- Timeout: 5 minutos
-- No se permiten múltiples consultas
-- Operaciones restringidas:
-  - DROP DATABASE
-  - CREATE DATABASE
-  - BACKUP/RESTORE
-  - xp_cmdshell
+La ejecución de consultas arbitrarias a través de la API pública fue eliminada en la versión actual por razones de seguridad. Si necesitas ejecutar scripts de control o auditoría, usa los endpoints de auditorías (audits) por gestor: /api/db/{manager}/audits/execute — estos ejecutan scripts predefinidos y controlados por el sistema.
 
 ## Gestión de Usuarios
 

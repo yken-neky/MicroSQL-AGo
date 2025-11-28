@@ -268,7 +268,7 @@ Output para MySQL:
 │   • controls_informations ✓                                      │
 │   • roles (preparadas para futuro)                               │
 │   • permissions (preparadas para futuro)                         │
-│   • queries, query_results, execution_stats (preparadas)        │
+│   • user-query history and storage was removed (no arbitrary SQL execution)
 │ Acceso: Código Go + GORM ORM                                    │
 │ Integridad: FK + índices UNIQUE                                 │
 │ Escalabilidad: ✓ Multi-usuario, replicación, sharding         │
@@ -321,8 +321,8 @@ Output para MySQL:
 │    ├─ user_roles: ✓ Creada                        │
 │    ├─ role_permissions: ✓ Creada                  │
 │    ├─ queries: ✓ Creada                           │
-│    ├─ query_result_dbs: ✓ Creada                  │
-│    └─ execution_stats: ✓ Creada                   │
+│    ├─ query_result_dbs: removed
+│    └─ execution_stats: removed
 └─────────────────────────────────────────────────────┘
 
 RESULTADO FINAL: ✅ 100% EXITOSO

@@ -70,9 +70,7 @@ Tu microservicio originalmente tenía una base de datos **SQLite con esquema Dja
 - `permissions` — para permisos del sistema
 - `user_roles` — relación usuario-rol
 - `role_permissions` — relación rol-permiso
-- `queries` — histórico de consultas SQL
-- `query_result_dbs` — resultados guardados de consultas
-- `execution_stats` — estadísticas de ejecución
+<!-- Removed: queries / query_result_dbs / execution_stats (user-submitted queries and query history were removed from the codebase) -->
 
 ---
 

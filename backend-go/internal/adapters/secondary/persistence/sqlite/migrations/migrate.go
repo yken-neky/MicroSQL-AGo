@@ -2,7 +2,7 @@ package migrations
 
 import (
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/domain/entities"
-	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/infrastructure/repositories"
+	// (no repository DB structs required here after removing query-related models)
 	"gorm.io/gorm"
 )
 
@@ -16,9 +16,7 @@ func Migrate(db *gorm.DB) error {
 		&entities.Permission{},
 		&entities.UserRole{},
 		&entities.ConnectionLog{},
-		&entities.Query{},
-		&entities.ExecutionStats{},
-		&repositories.QueryResultDB{},
+		// Query-related models were removed (no user-facing SQL execution/persistence)
 		&entities.AuditRun{},
 		&entities.AuditScriptResult{},
 		&entities.Session{},

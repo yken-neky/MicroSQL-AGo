@@ -31,7 +31,6 @@ Rutas de auditoría ahora están agrupadas por gestor y siguen el patrón `/api/
 - `GET /api/db/{gestor}/audits/:id` — Recupera el detalle de una auditoría y los resultados por script (audit run). **requiere JWT**
 
 ### Administración (admin)
-- `GET /api/admin/sessions` — Lista usuarios con sesión activa y sus tokens. Requiere rol `admin` y token Bearer.
 
 Ejemplo (usar token de admin en Authorization header):
 
@@ -54,6 +53,26 @@ Respuesta esperada (200):
 ```
 
 Nota: almacenar tokens en claro puede no ser deseable en producción — considerar almacenar hash derivadas y dar a administradores sólo la visibilidad que realmente necesitan.
+
+
+### Admin metrics
+
+These endpoints are protected and require the `admin` role.
+
+#### GET /admin/metrics/users
+Returns counts and distribution of users and roles.
+
+#### GET /admin/metrics/connections
+Returns counts for active connections and connection logs.
+
+#### GET /admin/metrics/audits
+Returns audit run counts, status distribution and average duration.
+
+#### GET /admin/metrics/roles
+Returns counts for roles and permissions and role-permission distribution.
+
+#### GET /admin/metrics/system
+Returns row counts for important tables (users, connections, sessions, audits, roles, permissions).
 
 ## Ejemplo de respuesta de stub
 
@@ -342,62 +361,7 @@ Response:
 #### DELETE /connections/{id}
 Close connection.
 
-### Queries
-
-#### POST /queries/execute
-Execute SQL query.
-
-Request:
-```json
-{
-    "sql": "SELECT * FROM users",
-    "database": "master",
-    "pageSize": 100
-}
-```
-
-Response:
-```json
-{
-    "columns": ["id", "name", "email"],
-    "types": ["int", "varchar", "varchar"],
-    "rows": [
-        [1, "John", "john@example.com"],
-        [2, "Jane", "jane@example.com"]
-    ],
-    "hasMoreRows": false,
-    "pageSize": 100,
-    "page": 1
-}
-```
-
-#### GET /queries/history
-Get query execution history.
-
-Query Parameters:
-- page (default: 1)
-- pageSize (default: 10)
-- startDate (optional)
-- endDate (optional)
-
-Response:
-```json
-{
-    "queries": [
-        {
-            "id": 1,
-            "sql": "SELECT * FROM users",
-            "status": "completed",
-            "startTime": "2025-11-07T10:00:00Z",
-            "endTime": "2025-11-07T10:00:01Z",
-            "rowsAffected": 10
-        }
-    ],
-    "total": 50,
-    "page": 1,
-    "pageSize": 10
-}
-```
+<!-- Queries endpoints removed: this project no longer supports user-submitted arbitrary SQL queries or storing query history/results. -->
 
 ### Users
 

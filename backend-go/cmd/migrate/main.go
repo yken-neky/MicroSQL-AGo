@@ -9,7 +9,7 @@ import (
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/config"
 	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/domain/entities"
 	repoport "github.com/yken-neky/MicroSQL-AGo/backend-go/internal/domain/ports/repositories"
-	"github.com/yken-neky/MicroSQL-AGo/backend-go/internal/infrastructure/repositories"
+	// repository structs not required for migrations after removing queries related models
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -136,9 +136,7 @@ func main() {
 		&entities.Permission{},
 		&entities.UserRole{},
 		&entities.ConnectionLog{},
-		&entities.Query{},
-		&entities.ExecutionStats{},
-		&repositories.QueryResultDB{},
+		// queries and related result/stats were removed from the Go model (user-facing SQL execution removed)
 	); err != nil {
 		log.Fatalf("failed to auto-migrate destination DB: %v", err)
 	}
