@@ -1,7 +1,4 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
-name: Go
+name: Go CI
 
 on:
   push:
@@ -10,22 +7,40 @@ on:
     branches: [ "main" ]
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.24.4'
+        go-version: '1.22'   # Ajusta según tu go.mod
 
-    - name: Build Server App
-      run: go build -v ./backend-go/cmd/server/...
+    - name: Cache Go modules
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/go/pkg/mod
+          ~/.cache/go-build
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
 
-    - name: Build Migrate App
-      run: go build -v ./backend-go/cmd/migrate/...
+    - name: Install dependencies
+      run: go mod download
+      working-directory: backend-go
 
-    - name: Build Wait_For_SQL App
-      run: go build -v ./backend-go/cmd/wait/...
+    - name: Build server binary
+      run: go build -o bin/server ./cmd/server
+      working-directory: backend-go
+
+    - name: Build migrate binary
+      run: go build -o bin/migrate ./cmd/migrate
+      working-directory: backend-go
+
+    - name: Build wait binary
+      run: go build -o bin/wait ./cmd/wait
+      working-directory: backend-go
