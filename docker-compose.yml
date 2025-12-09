@@ -1,0 +1,91 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: microsql_ago
+      MYSQL_USER: micro_user
+      MYSQL_PASSWORD: ChangeMeStrongPassword!
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build:
+      context: ./backend-go
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend-go/db.sqlite3:/app/db.sqlite3:ro
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_USER: micro_user
+      MYSQL_PASSWORD: ChangeMeStrongPassword!
+      MYSQL_DATABASE: microsql_ago
+      DB_PATH: /app/db.sqlite3
+    # Override entrypoint to run migration instead of server
+    entrypoint: ["/bin/sh", "-c", "/app/wait_for_mysql && /app/migrate"]
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend-go
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    environment:
+      # Server settings
+      SERVER_PORT: "8000"
+      GIN_MODE: release
+      LOG_LEVEL: info
+      # MySQL connection settings
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_USER: micro_user
+      MYSQL_PASSWORD: ChangeMeStrongPassword!
+      MYSQL_DATABASE: microsql_ago
+      # JWT and encryption (change in production!)
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-strong-secret}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-01234567890123456789012345678901}
+      # SQLite fallback path
+      DB_PATH: /app/db.sqlite3
+    volumes:
+      - ./backend-go/db.sqlite3:/app/db.sqlite3
+
+
+  frontend:
+    build:
+      context: ./frontend-nextjs
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Use backend service name for internal communication, but expose as localhost for browser
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+
+volumes:
+  db_data:
+
